@@ -15,6 +15,8 @@ import { defaultTheme } from './theme/presets';
 applyTheme(readCachedTheme() ?? defaultTheme(), systemPrefersReducedMotion() ? 'reduced' : 'full');
 
 if (import.meta.env.DEV) void import('./dev/demo');
+// Performance bench: only in builds made with VITE_ROAM_BENCH=1, never in releases.
+if (import.meta.env.VITE_ROAM_BENCH === '1') void import('./dev/bench');
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
