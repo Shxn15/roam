@@ -7,11 +7,19 @@
   pointer-events: auto;
 }
 
+/* Left column: search, continents, countries. It stops above the trip dock. */
 .column {
   position: absolute;
   top: var(--panel-gap);
   left: var(--panel-gap);
+  bottom: calc(var(--panel-gap) * 2 + var(--dock-height));
   width: var(--panel-width);
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
+  pointer-events: none;
+}
+
+.column > * {
+  pointer-events: auto;
 }

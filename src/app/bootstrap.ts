@@ -1,3 +1,4 @@
+import { useTravelStore } from '../data/travelStore';
 import { openDatabase } from '../db';
 import { setDb } from '../db/instance';
 import { systemPrefersReducedMotion, watchSystemReducedMotion } from '../motion/systemMotion';
@@ -13,7 +14,7 @@ export function bootstrap(): Promise<void> {
     watchSystemReducedMotion((reduced) => useThemeStore.getState().setSystemReducedMotion(reduced));
     startThemeSync();
     setDb(await openDatabase());
-    await useThemeStore.getState().hydrate();
+    await Promise.all([useThemeStore.getState().hydrate(), useTravelStore.getState().load()]);
     // The database is the source of truth: repaint even if the quick-start cache disagreed.
     const state = useThemeStore.getState();
     applyTheme(effectiveTheme(state), motionLevel(state));

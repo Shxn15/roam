@@ -14,6 +14,8 @@
     "tauri": "tauri",
     "app:dev": "tauri dev",
     "app:build": "tauri build",
+    "app:build:windows": "tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis",
+    "atlas": "node scripts/build-atlas.mjs",
     "icons": "tauri icon brand/app-icon.svg"
   },
   "dependencies": {
@@ -43,6 +45,8 @@
     "@types/sql.js": "^1.4.11",
     "@types/topojson-client": "^3.1.5",
     "@vitejs/plugin-react": "^6.1.2",
+    "topojson-server": "^3.0.1",
+    "topojson-simplify": "^3.0.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"

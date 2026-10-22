@@ -14,7 +14,7 @@ describe('migrations', () => {
     const result = await migrate(db);
     expect(result).toEqual({ from: 0, to: MIGRATIONS.length });
     const tables = await db.select<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name");
-    expect(tables.map((t) => t.name)).toEqual(['settings', 'themes']);
+    expect(tables.map((t) => t.name)).toEqual(['countries', 'settings', 'themes', 'trips']);
   });
 
   it('is idempotent', async () => {

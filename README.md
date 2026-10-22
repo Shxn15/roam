@@ -2,6 +2,8 @@
 
 Eine ruhige Desktop-App zum Recherchieren, Planen und Träumen von Reisen. Tauri 2 + React + TypeScript, alle Daten lokal in SQLite.
 
+![Kontinent-Übergang: Start, Wolken, Wolkendecke, Ankunft, Ende; rechts unten im Theme „Dunkel“](docs/screenshots/uebersicht-kontinent-uebergang.jpg)
+
 ![Die fünf Presets und die Theme-Einstellungen](docs/screenshots/uebersicht-presets.jpg)
 
 ## Stand
@@ -9,7 +11,7 @@ Eine ruhige Desktop-App zum Recherchieren, Planen und Träumen von Reisen. Tauri
 | Meilenstein | Inhalt | Status |
 | --- | --- | --- |
 | 1 | Projektgerüst, SQLite, Design-Tokens, Theme-System mit Presets | ✅ fertig |
-| 2 | Weltkarte, Kontinente, Länder, Auswahl-Animation | offen |
+| 2 | Weltkarte, Kontinente, Länder, Auswahl-Animation | ✅ fertig |
 | 3 | Reise anlegen, Ländertab mit Tabs | offen |
 | 4 | Tagesplan mit Zeitblöcken | offen |
 | 5 | Budget und Packliste | offen |
@@ -18,7 +20,31 @@ Eine ruhige Desktop-App zum Recherchieren, Planen und Träumen von Reisen. Tauri
 | 8 | Notizen im Word-Stil, Ideen aus früheren Reisen | offen |
 | 9 | Flugzeug-Übergang und Pop-Effekte verfeinern | offen |
 
-Auf der Startseite sind Suche, Zoom und „Neue Reise“ bis zu ihren Meilensteinen noch ohne Funktion, die Weltkarte ist noch statisch.
+### Was in Schritt 2 dazukam
+
+- **Weltkarte** im Vollbild mit allen 240 Ländern und Gebieten aus Natural Earth (offline). Besuchte Länder sind eingefärbt, Kleinstaaten erscheinen als Punkte.
+- **Kontinent-Übergang** in 1,8 s: Wolken schieben sich herein, die Kamera zoomt darunter, die Wolken treiben weg. Ein Flugzeug fliegt dabei entlang einer gestrichelten Linie, die sich nachzeichnet. Eine neue Auswahl während des Übergangs startet sofort von der aktuellen Position.
+- **Panels:** Suche (Länder nach Name, auch „oesterreich“ oder „USA“), Kontinente mit „besucht / gesamt“, Länderchips des gewählten Kontinents, Reisekarten mit Status, Tagen und Fortschritt, Zoom-Steuerung.
+- **Länderseite** `/land/:id` als Platzhalter für Schritt 3: Sie rahmt das Land auf der Karte und hat einen Schalter „Schon dort gewesen“ mit Jahr.
+
+### Bedienung der Karte
+
+| Aktion | Maus | Tastatur |
+| --- | --- | --- |
+| Zoomen | Mausrad, Buttons + / − | `+` / `-` |
+| Verschieben | Ziehen | Pfeiltasten |
+| Kontinent wählen | Kontinentliste oder Klick auf ein Land | – |
+| Land öffnen | Länderchip, Suche, Klick auf ein Land im gewählten Kontinent | Enter in der Suche |
+| Zurück | Weltkugel-Button | `Esc` (Länderseite → Karte → ganze Welt) |
+
+### Offene Punkte
+
+- **Reise anlegen** fehlt noch, das kommt in Schritt 3. Bis dahin bleibt die Reiseleiste in einer frischen Installation leer. Im Browser-Vorschaumodus legt `await roamDemo.seed()` in der Konsole Beispieldaten an (nur im Entwicklungsmodus enthalten).
+- **Fortschritt** einer Reise ist vorerst: abgeschlossen = 100 %, unterwegs = vergangene Tage / Tage, sonst 0 %. Ab dem Tagesplan (Schritt 4) zählt die geplante Zeit.
+- **Performance auf echter Hardware messen:** Im Container ohne GPU läuft der Übergang mit etwa 30 fps, die Karte allein mit 60 fps. Mit Grafikkarte (WebView2, WKWebView) sollte er flüssig sein; geprüft ist das nicht.
+- **Ozeanien** rahmt Australien, Neuseeland und Melanesien. Inseln jenseits der Datumsgrenze (Samoa, Tonga, Französisch-Polynesien) liegen am linken Kartenrand und sind über Chips und Suche erreichbar.
+- **Zählung:** Natural Earth führt auch abhängige Gebiete (Grönland, Hongkong, Puerto Rico …). Deshalb hat zum Beispiel Afrika 59 statt 54 Einträge. Eine Trennung in Staaten und Gebiete wäre in Schritt 7 möglich.
+- **Flug zum Land** (Schritt 3) nutzt dieselben Ebenen, der Pop-Effekt folgt in Schritt 9.
 
 ## Starten
 
@@ -32,21 +58,37 @@ npm test            # Tests der Datenlogik (Vitest)
 npm run typecheck
 npm run app:build   # Installer/Bundle für das aktuelle Betriebssystem
 npm run icons       # App-Icons aus brand/app-icon.svg neu erzeugen
+npm run atlas       # Weltkarte aus Natural Earth neu bauen (src/geo/data/atlas.json)
 ```
+
+**Windows-`.exe` von Linux aus** (so entstehen die Builds aus dieser Entwicklung): einmalig `rustup target add x86_64-pc-windows-msvc`, `cargo install cargo-xwin`, dazu `nsis`, `lld`, `clang` und `llvm`. Danach:
+
+```bash
+npm run app:build:windows
+# → src-tauri/target/x86_64-pc-windows-msvc/release/roam.exe                (portabel)
+# → src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe (Installer)
+```
+
+Die Dateien sind nicht signiert, Windows warnt deshalb beim ersten Start („Weitere Informationen“ → „Trotzdem ausführen“).
 
 ## Aufbau
 
 ```
 src/
   theme/       Design-Tokens, Presets (JSON), Ableitung, Kontrast, Theme-Store
-  db/          SQLite-Adapter, Migrationen, Repositories (settings, themes)
+  db/          SQLite-Adapter, Migrationen, Repositories (settings, themes, countries, trips)
+  domain/      reine Logik: Länder pro Kontinent, Zählung, Suche, Reise-Fortschritt
+  geo/         Atlas (vorprojizierte Länder), Kontinente und ihre Kartenausschnitte
+  data/        Store für Länder und Reisen
+  features/map Kamera, Übergangs-Timeline, Wolken, Flugroute, Controller, WorldMap
   motion/      „Bewegung reduzieren“: System + eigener Schalter
   ui/          kleine, theme-neutrale Bausteine (Panel, Button, ColorField, …)
-  features/    home, settings, journal, map
+  features/    home, country, settings, journal, map
   brand/       Logo und Flugzeug-Form
   app/         Start, Routing, schwebendes Layout
 src-tauri/     Rust-Seite: SQL-Plugin, App-Datenordner, Fenster, CSP
 brand/         App-Icon (SVG-Quelle)
+scripts/       build-atlas.mjs (Natural Earth → atlas.json)
 ```
 
 ## Entscheidungen
@@ -72,7 +114,26 @@ brand/         App-Icon (SVG-Quelle)
 
 **Bewegung.** Große Übergänge wie Flug und Zoom dauern 1,8 s, UI-Feedback 140–480 ms. Der Standard folgt „Bewegung reduzieren“ des Systems, in den Einstellungen lässt sich das auf Reduziert oder Voll übersteuern. Reduziert heißt: kurze Überblendungen, kein Flug. Die Dauern stehen als Tokens bereit, für CSS (`--dur-*`) und für Motion (`useDurations`).
 
-**Karte.** SVG mit d3-geo statt MapLibre, aus drei Gründen: Farben kommen direkt aus CSS-Variablen (Live-Vorschau ohne Zusatzaufwand), Flugzeug und gestrichelte Linie sind einfache SVG-Pfade, und die Projektion „Natural Earth“ wirkt ruhiger als Web-Mercator. Meilenstein 1 zeigt nur die Land-Silhouette (`world-atlas`). In Meilenstein 2 kommen die Natural-Earth-Länder (1:50 Mio., mit deutschen Namen, ISO-Codes und Kontinenten) dazu, damit auch Kleinstaaten markierbar sind. Für die Detailkarte einer Reise (Meilenstein 6) wird MapLibre neu bewertet.
+**Karte.** SVG mit d3-geo statt MapLibre, aus drei Gründen: Farben kommen direkt aus CSS-Variablen (Live-Vorschau ohne Zusatzaufwand), Flugzeug und gestrichelte Linie sind einfache SVG-Pfade, und die Projektion „Natural Earth“ wirkt ruhiger als Web-Mercator. Für die Detailkarte einer Reise (Meilenstein 6) wird MapLibre neu bewertet.
+
+**Atlas statt Laufzeit-Projektion.**
+- `scripts/build-atlas.mjs` nimmt Natural Earth 1:50 Mio. (gemeinfrei, Version 5.1.2), vereinfacht die Formen und projiziert sie einmalig in einen festen Referenzraum (1000 × 520).
+- Die App zeichnet die Pfade nie neu. Zoom und Verschieben ändern nur ein `transform` an der Karten-Gruppe, Linien bleiben dank `vector-effect: non-scaling-stroke` gleich dick.
+- Die deutschen Namen kommen aus `NAME_DE`, mit ein paar Kurzformen („China“, „Taiwan“). Siachen-Gletscher und Ashmore-Inseln sind keine Reiseziele und fehlen.
+- Kleinstaaten, die zu klein zum Anklicken sind, werden zusätzlich als Punkt gezeichnet.
+- Der Primärschlüssel eines Landes ist der Natural-Earth-Code (`JPN`), weil nicht jedes Gebiet einen ISO-Code hat (z. B. Nordzypern, Somaliland). `iso_code` ist deshalb optional.
+
+**Kontinent-Ausschnitte von Hand.** Eine berechnete Bounding-Box würde Europa wegen Französisch-Guayana bis nach Südamerika ziehen und Ozeanien über die Datumsgrenze. Deshalb hat jeder Kontinent in `src/geo/continents.ts` einen festen Ausschnitt in Längen- und Breitengraden.
+
+**Kontinent-Übergang.**
+- Alle Zeiten und die Wolkenanzahl stehen in einer Konstante: `CONTINENT_TRANSITION` in `src/features/map/transition.ts`.
+- Die Timeline ist eine reine Funktion der Zeit. Der `MapController` (ohne React) hält Kamera und laufenden Übergang. Eine neue Auswahl startet aus der aktuellen Kamera und mit der aktuellen Wolkendecke, deshalb springt nichts.
+- Getrennte Ebenen von unten nach oben: Karte (SVG-Transform), Flugroute mit Flugzeug, Wolken (CSS-Transforms), Panels.
+- Wolken bewegen sich auf demselben Weg hinein und hinaus, damit auch eine Unterbrechung beim Aufklaren nicht ruckelt.
+- Die Wolken sind SVG mit Weichzeichner und `feDropShadow` und haben eine dunklere Unterseite für Volumen. Jede Wolke wird einmal als Bild gerendert und danach nur verschoben: Filter in jedem Frame neu zu berechnen hat sich als größte Bremse gemessen.
+- Ein Dunstschleier hinter den Wolken schließt die letzten Lücken, sodass die Karte in der Mitte des Übergangs fast ganz bedeckt ist.
+- Die gestrichelte Linie zeichnet sich über eine Maske nach, deren durchgezogener Strich per `stroke-dashoffset` wächst. Eine gestrichelte Linie lässt sich mit `stroke-dashoffset` allein nicht aufdecken, weil der Offset dort die Striche verschiebt.
+- Bei „Bewegung reduzieren“ blendet die Karte in 360 ms aus und wieder ein, ohne Wolken und Flugzeug.
 
 **Schriften offline.** Alle Schriften sind über Fontsource eingebunden: Fraunces (Überschriften in Standard und den dunklen Themes), Bricolage Grotesque und Plus Jakarta Sans (Pastell Bento, Weiß mit Akzent; Plus Jakarta Sans ist überall die UI-Schrift) sowie Fredoka (Logo).
 
@@ -90,5 +151,12 @@ brand/         App-Icon (SVG-Quelle)
 - Migrationen: frisch, idempotent, Rollback bei Fehlern, neuere Schema-Version
 - Einstellungen und eigene Themes in SQLite
 - der Wächter gegen hart codierte Farben
+- ein Preset-Wechsel ändert die angewendeten Token-Werte und wird gespeichert
+- Atlas, Länderliste pro Kontinent, Zählung besuchter Länder (in Speicher und SQLite), Suche mit Umlauten und Aliasen
+- Seed aller Länder, ohne bereits erfasste Besuche zu überschreiben
+- Reisen mit Prüfungen in der Datenbank, Sortierung und Fortschritt
+- Kamera-Mathematik, Flugroute und Wolkenpositionen
+- Übergangs-Timeline: Wolken, Zoom, Flugzeug, Aufdecken
+- Unterbrechung mitten im Flug und beim Aufklaren (die Karte endet auf dem neuen Kontinent), Escape, reduzierte Bewegung
 
-Ab den nächsten Meilensteinen kommen Budgetsummen, Zeitblock-Überschneidungen und Fortschrittsberechnung hinzu.
+Ab den nächsten Meilensteinen kommen Budgetsummen und Zeitblock-Überschneidungen hinzu.

@@ -1,0 +1,38 @@
+.switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  transition:
+    background-color var(--dur-base) var(--ease-soft),
+    border-color var(--dur-base) var(--ease-soft);
+}
+
+.thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-base) var(--ease-soft);
+}
+
+.on {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.on .thumb {
+  transform: translateX(18px);
+}
+
+.switch:disabled {
+  opacity: 0.5;
+}

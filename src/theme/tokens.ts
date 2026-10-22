@@ -52,7 +52,8 @@ export const STATIC_TOKENS: Record<string, string> = {
   '--leading-normal': '1.5',
 
   '--panel-gap': '16px',
-  '--panel-width': '288px',
+  '--panel-width': '300px',
+  '--dock-height': '128px',
 
   '--z-map': '0',
   '--z-panels': '10',
@@ -69,6 +70,8 @@ export function radiusTokens(base: number): Record<string, string> {
     '--radius-md': r(0.875),
     '--radius-lg': r(1),
     '--radius-xl': r(1.5),
+    // Floating map panels stay close to 24 px in every preset.
+    '--radius-panel': `${Math.min(28, Math.max(20, Math.round(base * 1.5)))}px`,
     '--radius-pill': '999px',
   };
 }

@@ -81,6 +81,13 @@ export function deriveColorTokens(theme: ThemeRecord): TokenMap {
     '--map-visited': mix(land, accent, k.visited),
     '--map-visited-border': mix(accent, text, 0.12),
     '--map-dim-opacity': '0.4',
+    // Continent transition: soft clouds and the haze behind them.
+    '--cloud': appearance === 'light' ? mix(surface, PAPER_ANCHOR, 0.85) : mix(surface, text, 0.34),
+    '--cloud-belly': appearance === 'light' ? mix(background, accent, 0.08) : mix(surface, text, 0.16),
+    '--cloud-shade': appearance === 'light' ? mix(background, text, 0.24) : mix(background, INK_ANCHOR, 0.5),
+    '--cloud-veil': appearance === 'light' ? mix(background, PAPER_ANCHOR, 0.5) : mix(background, text, 0.12),
+    '--map-land-hover': mix(land, accent, appearance === 'light' ? 0.16 : 0.22),
+    '--map-focus': mix(land, accent, appearance === 'light' ? 0.7 : 0.75),
     '--scrim': `rgb(${shadowRgb} / ${appearance === 'light' ? 0.22 : 0.55})`,
     '--logo-ink': appearance === 'light' ? BRAND.nightBlue : BRAND.cream,
     '--logo-plane': appearance === 'light' ? BRAND.periwinkle : BRAND.lavender,

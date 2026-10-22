@@ -21,7 +21,8 @@ export default defineConfig({
     target: ['es2022', 'chrome105', 'safari15'],
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
     // Loaded from disk by the desktop app, so one larger chunk costs nothing noticeable.
-    chunkSizeWarningLimit: 1200,
+    // About 730 kB of it is the pre-projected world atlas (src/geo/data/atlas.json).
+    chunkSizeWarningLimit: 1600,
   },
   test: {
     environment: 'node',

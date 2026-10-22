@@ -1,0 +1,145 @@
+.map {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--map-ocean);
+  touch-action: none;
+}
+
+.svg,
+.flight {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.svg {
+  cursor: grab;
+}
+
+.svg:active {
+  cursor: grabbing;
+}
+
+.flight {
+  pointer-events: none;
+}
+
+.sphere {
+  fill: var(--map-ocean);
+  stroke: var(--map-graticule);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.graticule {
+  fill: none;
+  stroke: var(--map-graticule);
+  stroke-width: 0.75;
+  vector-effect: non-scaling-stroke;
+}
+
+.continent {
+  transition: opacity calc(var(--dur-journey) * 0.55) var(--ease-in-out);
+}
+
+.dimmed {
+  opacity: var(--map-dim-opacity);
+}
+
+.country {
+  fill: var(--map-land);
+  stroke: var(--map-border);
+  stroke-width: 0.7;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  transition: fill var(--dur-base) var(--ease-soft);
+}
+
+.country:hover {
+  fill: var(--map-land-hover);
+}
+
+.country.visited {
+  fill: var(--map-visited);
+  stroke: var(--map-visited-border);
+}
+
+.country.focused {
+  fill: var(--map-focus);
+  stroke: var(--accent);
+}
+
+/* Small states are dots; they keep their size on screen whatever the zoom. */
+.dot {
+  display: none;
+  fill: var(--map-land);
+  stroke: var(--border-strong);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(calc(1 / var(--k, 1)));
+}
+
+.current .dot,
+.dot.visited,
+.dot.focused {
+  display: inline;
+}
+
+.dot.visited {
+  fill: var(--map-visited);
+  stroke: var(--map-visited-border);
+}
+
+.dot.focused {
+  fill: var(--accent);
+}
+
+.trailMask {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+}
+
+.trail {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-dasharray: 1 8;
+  opacity: 0;
+}
+
+.plane {
+  opacity: 0;
+}
+
+.plane path {
+  fill: var(--accent);
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 2px var(--cloud-shade));
+}
+
+.tooltip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-soft);
+}

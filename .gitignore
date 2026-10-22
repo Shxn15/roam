@@ -6,3 +6,4 @@ dist/
 coverage/
 src-tauri/icons/android/
 src-tauri/icons/ios/
+release/

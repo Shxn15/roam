@@ -1,4 +1,5 @@
 import { ContinentPanel } from './ContinentPanel';
+import { CountryChips } from './CountryChips';
 import { SearchPanel } from './SearchPanel';
 import { TripDock } from './TripDock';
 import { ZoomControls } from './ZoomControls';
@@ -10,6 +11,7 @@ export function HomePage() {
       <div className={styles.column}>
         <SearchPanel />
         <ContinentPanel />
+        <CountryChips />
       </div>
       <ZoomControls />
       <TripDock />

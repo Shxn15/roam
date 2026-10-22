@@ -5,7 +5,11 @@
   transform: translateY(-50%);
   display: grid;
   gap: 2px;
-  padding: 3px;
+  padding: 4px;
+}
+
+.zoom button {
+  border-radius: calc(var(--radius-panel) - 4px);
 }
 
 .divider {

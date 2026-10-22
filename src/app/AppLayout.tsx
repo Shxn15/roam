@@ -1,8 +1,7 @@
 import { Outlet } from 'react-router';
-import { WorldBackdrop } from '../features/map/WorldBackdrop';
+import { WorldMap } from '../features/map/WorldMap';
 import { SettingsSheet } from '../features/settings/SettingsSheet';
 import { Toaster } from '../ui/Toaster';
-import { HOME_MAP_INSETS } from './layout';
 import { TopBar } from './TopBar';
 import styles from './AppLayout.module.css';
 
@@ -10,7 +9,7 @@ import styles from './AppLayout.module.css';
 export function AppLayout() {
   return (
     <div className={styles.app}>
-      <WorldBackdrop insets={HOME_MAP_INSETS} />
+      <WorldMap />
       <div className={styles.stage}>
         <Outlet />
       </div>

@@ -1,0 +1,86 @@
+.panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-3) var(--space-2) var(--space-5);
+}
+
+.title {
+  font-size: var(--text-lg);
+}
+
+.meta {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.chips {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
+  padding: var(--space-2) var(--space-4) var(--space-4);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition:
+    background-color var(--dur-fast) var(--ease-soft),
+    border-color var(--dur-fast) var(--ease-soft);
+  /* Staggered entrance, cheaper as CSS than as one animated component per chip. */
+  animation: chip-in calc(var(--dur-base) * 1.4) var(--ease-soft) both;
+  animation-delay: calc(var(--i, 0) * 18ms);
+}
+
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.92);
+  }
+}
+
+:global([data-motion='reduced']) .chip {
+  animation-name: chip-fade;
+  animation-delay: 0ms;
+}
+
+@keyframes chip-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.chip:hover {
+  border-color: var(--focus-ring);
+  background: var(--surface-hover);
+}
+
+.visited {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}

@@ -1,0 +1,31 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.veil {
+  position: absolute;
+  inset: 0;
+  background: var(--cloud-veil);
+  opacity: 0;
+}
+
+.cloud {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}
+
+/* The image's viewBox has room for the shadow around the 200×120 cloud box. */
+.cloud img {
+  position: absolute;
+  left: -10%;
+  top: -20%;
+  width: 120%;
+  height: 146.667%;
+  user-select: none;
+}

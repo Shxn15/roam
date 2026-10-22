@@ -3,22 +3,27 @@
   left: var(--panel-gap);
   right: calc(var(--panel-gap) + 64px);
   bottom: var(--panel-gap);
+  height: var(--dock-height);
   display: flex;
   gap: var(--space-3);
   align-items: stretch;
+  pointer-events: none;
+}
+
+.dock > * {
+  pointer-events: auto;
 }
 
 .newTrip {
-  width: 148px;
-  height: 128px;
+  width: 132px;
   flex: none;
   display: grid;
   place-content: center;
   justify-items: center;
   gap: var(--space-2);
   border: 1.5px dashed var(--border-strong);
-  border-radius: var(--radius-lg);
-  background: rgb(var(--surface-rgb) / 0.72);
+  border-radius: var(--radius-panel);
+  background: rgb(var(--surface-rgb) / 0.78);
   color: var(--text-muted);
   font-weight: 600;
   font-size: var(--text-md);
@@ -38,9 +43,21 @@
   color: var(--accent-text);
 }
 
+.scroller {
+  min-width: 0;
+  display: flex;
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding-bottom: 2px;
+  pointer-events: none;
+}
+
+.scroller > * {
+  pointer-events: auto;
+}
+
 .empty {
   width: 340px;
-  height: 128px;
   display: grid;
   align-content: center;
   gap: var(--space-1);

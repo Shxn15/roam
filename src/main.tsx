@@ -14,6 +14,8 @@ import { defaultTheme } from './theme/presets';
 // Paint in the last used theme right away; the database confirms it a moment later.
 applyTheme(readCachedTheme() ?? defaultTheme(), systemPrefersReducedMotion() ? 'reduced' : 'full');
 
+if (import.meta.env.DEV) void import('./dev/demo');
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

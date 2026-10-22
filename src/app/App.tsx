@@ -2,6 +2,7 @@ import { MotionConfig } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { RouterProvider, createHashRouter } from 'react-router';
 import { Logo } from '../brand/Logo';
+import { CountryPage } from '../features/country/CountryPage';
 import { HomePage } from '../features/home/HomePage';
 import { JournalPage } from '../features/journal/JournalPage';
 import { useMotionLevel } from '../motion/useMotion';
@@ -16,6 +17,7 @@ const router = createHashRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: 'tagebuch', element: <JournalPage /> },
+      { path: 'land/:id', element: <CountryPage /> },
     ],
   },
 ]);
