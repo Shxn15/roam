@@ -1,0 +1,36 @@
+.page {
+  display: grid;
+  gap: var(--space-7);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sectionHead {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.sectionHead h4,
+.workbench h4 {
+  font-size: var(--text-lg);
+}
+
+.sectionHead p {
+  color: var(--text-muted);
+  font-size: var(--text-md);
+}
+
+.workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.side {
+  display: grid;
+  gap: var(--space-5);
+}

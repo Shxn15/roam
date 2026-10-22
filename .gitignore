@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+.vite/
+coverage/
+src-tauri/icons/android/
+src-tauri/icons/ios/

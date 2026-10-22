@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "dunkel",
+  "name": "Dunkel",
+  "basedOn": null,
+  "colors": {
+    "background": "#14152B",
+    "surface": "#1E2040",
+    "accent": "#9D8CFF",
+    "text": "#ECEAF7",
+    "border": "#2E3160",
+    "button": "#9D8CFF",
+    "buttonText": "#14152B"
+  },
+  "tints": ["#2E2B57", "#1F3452", "#1D3A3A", "#3A3324"],
+  "fonts": { "display": "fraunces", "body": "jakarta" },
+  "radius": 16
+}

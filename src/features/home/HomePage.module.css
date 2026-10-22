@@ -1,0 +1,17 @@
+.home {
+  position: absolute;
+  inset: 0;
+}
+
+.home > * {
+  pointer-events: auto;
+}
+
+.column {
+  position: absolute;
+  top: var(--panel-gap);
+  left: var(--panel-gap);
+  width: var(--panel-width);
+  display: grid;
+  gap: var(--space-3);
+}

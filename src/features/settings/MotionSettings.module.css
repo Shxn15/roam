@@ -1,0 +1,47 @@
+.page {
+  display: grid;
+  gap: var(--space-7);
+  max-width: 640px;
+}
+
+.section {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: start;
+}
+
+.head {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.head h4 {
+  font-size: var(--text-lg);
+}
+
+.head p {
+  color: var(--text-muted);
+  font-size: var(--text-md);
+}
+
+.status {
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+}
+
+.status div {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.status dt {
+  width: 150px;
+  color: var(--text-muted);
+}
+
+.status dd {
+  margin: 0;
+  font-weight: 600;
+}

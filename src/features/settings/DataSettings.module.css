@@ -1,0 +1,40 @@
+.page {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 680px;
+}
+
+.intro {
+  color: var(--text-muted);
+}
+
+.list {
+  margin: 0;
+  display: grid;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.list div {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+
+.list div + div {
+  border-top: 1px solid var(--border);
+}
+
+.list dt {
+  color: var(--text-muted);
+  font-size: var(--text-md);
+}
+
+.list dd {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,20 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--space-7);
+  background: var(--scrim);
+}
+
+.sheet {
+  width: min(1120px, 100%);
+  height: min(820px, 100%);
+  display: flex;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}

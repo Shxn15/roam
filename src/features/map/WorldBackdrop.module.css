@@ -1,0 +1,32 @@
+.backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--map-ocean);
+}
+
+.backdrop svg {
+  display: block;
+}
+
+.sphere {
+  fill: var(--map-ocean);
+  stroke: var(--map-graticule);
+  stroke-width: 1.5;
+}
+
+.graticule {
+  fill: none;
+  stroke: var(--map-graticule);
+  stroke-width: 0.75;
+}
+
+.land {
+  fill: var(--map-land);
+  stroke: var(--map-border);
+  stroke-width: 0.75;
+  stroke-linejoin: round;
+  transition:
+    fill var(--dur-slow) var(--ease-soft),
+    stroke var(--dur-slow) var(--ease-soft);
+}

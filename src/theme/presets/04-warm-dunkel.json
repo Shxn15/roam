@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "warm-dunkel",
+  "name": "Warm dunkel",
+  "basedOn": null,
+  "colors": {
+    "background": "#1C1612",
+    "surface": "#28201A",
+    "accent": "#D9925F",
+    "text": "#F3E8DC",
+    "border": "#3D3128",
+    "button": "#D9925F",
+    "buttonText": "#1C1612"
+  },
+  "tints": ["#3B2A2F", "#2B3330", "#41301F", "#33341F"],
+  "fonts": { "display": "fraunces", "body": "jakarta" },
+  "radius": 16
+}

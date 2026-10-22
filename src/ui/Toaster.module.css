@@ -1,0 +1,30 @@
+.region {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-6);
+  z-index: calc(var(--z-modal) + 1);
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  max-width: 480px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--button);
+  color: var(--button-text);
+  font-size: var(--text-md);
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+}
+
+.error {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger);
+}

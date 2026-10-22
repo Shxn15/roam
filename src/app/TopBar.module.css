@@ -1,0 +1,49 @@
+.bar {
+  position: absolute;
+  top: var(--panel-gap);
+  right: var(--panel-gap);
+  z-index: calc(var(--z-panels) + 1);
+  display: flex;
+  gap: var(--space-2);
+}
+
+.nav,
+.settings {
+  padding: 3px;
+}
+
+.links {
+  display: flex;
+  gap: 2px;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-3);
+  border-radius: calc(var(--radius-lg) - 4px);
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background-color var(--dur-fast) var(--ease-soft),
+    color var(--dur-fast) var(--ease-soft);
+}
+
+.link:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.active,
+.active:hover {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.settings :global(button) {
+  border-radius: calc(var(--radius-lg) - 4px);
+}

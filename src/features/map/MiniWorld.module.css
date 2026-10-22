@@ -1,0 +1,6 @@
+.land {
+  fill: var(--map-land);
+  stroke: var(--map-border);
+  stroke-width: 0.6;
+  stroke-linejoin: round;
+}

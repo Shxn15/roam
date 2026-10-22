@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "pastell-bento",
+  "name": "Pastell Bento",
+  "basedOn": null,
+  "colors": {
+    "background": "#F4F1F7",
+    "surface": "#FFFDFB",
+    "accent": "#6E53C9",
+    "text": "#2D2840",
+    "border": "#E6E0EF",
+    "button": "#2D2840",
+    "buttonText": "#FFFDFB"
+  },
+  "tints": ["#E4DBFB", "#CDEFE1", "#F8DCE3", "#FAEFC4"],
+  "fonts": { "display": "bricolage", "body": "jakarta" },
+  "radius": 20
+}

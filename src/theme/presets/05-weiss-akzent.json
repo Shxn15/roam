@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "weiss-akzent",
+  "name": "Weiß mit Akzent",
+  "basedOn": null,
+  "colors": {
+    "background": "#F4F4F2",
+    "surface": "#FFFFFF",
+    "accent": "#2B4BF2",
+    "text": "#1C1B22",
+    "border": "#E4E4E8",
+    "button": "#2B4BF2",
+    "buttonText": "#FFFFFF"
+  },
+  "tints": ["#ECE8FF", "#E3EDFF", "#DDF5EA", "#FFF2CC"],
+  "fonts": { "display": "bricolage", "body": "jakarta" },
+  "radius": 14
+}

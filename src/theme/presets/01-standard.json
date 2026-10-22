@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "standard",
+  "name": "Standard",
+  "basedOn": null,
+  "colors": {
+    "background": "#F2EDE4",
+    "surface": "#FFFCF7",
+    "accent": "#4A68C5",
+    "text": "#2A2734",
+    "border": "#E6DDD0",
+    "button": "#2B3560",
+    "buttonText": "#FFFCF7"
+  },
+  "tints": ["#E8E4F6", "#DEE8F4", "#DFECDD", "#F3E8CF"],
+  "fonts": { "display": "fraunces", "body": "jakarta" },
+  "radius": 16
+}

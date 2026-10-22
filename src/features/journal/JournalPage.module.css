@@ -1,0 +1,39 @@
+.page {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.panel {
+  pointer-events: auto;
+  width: min(460px, calc(100% - 64px));
+  padding: var(--space-7);
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--tint-1);
+  color: var(--text);
+}
+
+.title {
+  font-size: var(--text-2xl);
+}
+
+.text {
+  color: var(--text-muted);
+}
+
+.soon {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--accent-text);
+}
