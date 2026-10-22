@@ -1,7 +1,10 @@
-import { sortTrips, type TripSummary } from '../../domain/trips';
+import { sortTrips, validateTrip, type NewTrip, type TripSummary } from '../../domain/trips';
 import type { TripStatus } from '../../domain/tripStatus';
 import type { ContinentId } from '../../geo/continents';
 import type { Db } from '../types';
+import { createDays } from './dayPlan';
+
+export type { NewTrip } from '../../domain/trips';
 
 interface TripRow {
   id: string;
@@ -40,19 +43,29 @@ export async function listTripsForCountry(db: Db, countryId: string): Promise<Tr
   return sortTrips((await db.select<TripRow>(`${SELECT} WHERE t.country_id = ?`, [countryId])).map(toTrip));
 }
 
-export interface NewTrip {
-  countryId: string;
-  title: string;
-  status: TripStatus;
-  days: number;
-  startDate?: string | null;
+export async function getTrip(db: Db, id: string): Promise<TripSummary | undefined> {
+  const rows = await db.select<TripRow>(`${SELECT} WHERE t.id = ?`, [id]);
+  return rows[0] && toTrip(rows[0]);
 }
 
-/** Creating trips gets its own UI in milestone 3; the repository is ready for it. */
+/**
+ * Creates a trip with its days (day 1 to N). Two statements instead of a transaction: the
+ * desktop SQL plugin pools connections, so BEGIN and COMMIT could land on different ones. If
+ * the days cannot be stored, the trip is removed again, so a trip never exists without days.
+ */
 export async function createTrip(db: Db, input: NewTrip, now = new Date(), id = crypto.randomUUID()): Promise<string> {
+  const checked = validateTrip({ ...input, startDate: input.startDate ?? null });
+  if (!checked.ok) throw new Error(Object.values(checked.errors).join(' '));
+  const trip = checked.value;
   await db.execute(
     'INSERT INTO trips (id, country_id, title, status, days, start_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [id, input.countryId, input.title.trim(), input.status, input.days, input.startDate ?? null, now.toISOString()],
+    [id, trip.countryId, trip.title, trip.status, trip.days, trip.startDate ?? null, now.toISOString()],
   );
+  try {
+    await createDays(db, id, trip.days, trip.startDate ?? null);
+  } catch (error) {
+    await db.execute('DELETE FROM trips WHERE id = ?', [id]).catch(() => undefined);
+    throw error;
+  }
   return id;
 }

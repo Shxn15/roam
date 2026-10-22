@@ -1,4 +1,5 @@
 import type { ContinentId } from '../geo/continents';
+import { MAX_DAYS, isIsoDate } from './dayPlan';
 import { TRIP_STATUSES, type TripStatus } from './tripStatus';
 
 export interface Trip {
@@ -49,4 +50,56 @@ export function isTripStatus(value: unknown): value is TripStatus {
 export function todayIso(now = new Date()): string {
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 10);
+}
+
+const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+/** "Japan Oktober": the country and the month of the start date, or of today for trips without one. */
+export function defaultTripTitle(countryName: string, startDate: string | null, today: string): string {
+  const month = Number((startDate ?? today).slice(5, 7));
+  return `${countryName} ${MONTHS[month - 1] ?? ''}`.trim();
+}
+
+export const MAX_TITLE_LENGTH = 80;
+
+/** A new trip as the repository stores it. */
+export interface NewTrip {
+  countryId: string;
+  title: string;
+  status: TripStatus;
+  days: number;
+  startDate?: string | null;
+}
+
+export interface TripDraft {
+  countryId: string;
+  title: string;
+  /** As typed: the form may hand over text. */
+  days: number | string;
+  status: TripStatus;
+  startDate: string | null;
+}
+
+export type TripErrors = Partial<Record<'title' | 'days' | 'status' | 'startDate', string>>;
+
+/**
+ * Checks a new trip. An idea needs no start date (and drops one if given). A trip under way
+ * needs one, because its progress counts the days since departure. Otherwise it is optional.
+ */
+export function validateTrip(draft: TripDraft): { ok: true; value: NewTrip } | { ok: false; errors: TripErrors } {
+  const errors: TripErrors = {};
+  const title = draft.title.trim();
+  if (!title) errors.title = 'Bitte einen Titel eingeben.';
+  else if (title.length > MAX_TITLE_LENGTH) errors.title = `Höchstens ${MAX_TITLE_LENGTH} Zeichen.`;
+
+  const days = typeof draft.days === 'number' ? draft.days : Number(String(draft.days).trim() || NaN);
+  if (!Number.isInteger(days) || days < 1 || days > MAX_DAYS) errors.days = `Zwischen 1 und ${MAX_DAYS} Tagen.`;
+
+  if (!isTripStatus(draft.status)) errors.status = 'Bitte einen Status wählen.';
+  const startDate = draft.status === 'idea' ? null : draft.startDate || null;
+  if (startDate !== null && !isIsoDate(startDate)) errors.startDate = 'Bitte ein gültiges Datum wählen.';
+  if (draft.status === 'traveling' && startDate === null) errors.startDate = 'Unterwegs braucht ein Startdatum, um den Fortschritt zu zeigen.';
+
+  if (Object.keys(errors).length > 0) return { ok: false, errors };
+  return { ok: true, value: { countryId: draft.countryId, title, status: draft.status, days, startDate } };
 }
