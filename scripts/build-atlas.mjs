@@ -20,8 +20,10 @@ const OUT = join(ROOT, 'src/geo/data/atlas.json');
 
 /** Width of the reference space all paths are projected into. */
 const WIDTH = 1000;
-/** Share of vertices kept after simplification (by importance). */
-const KEEP = 0.45;
+/** Share of vertices kept (by importance) for the detailed level, used when zoomed in. */
+const KEEP = 0.55;
+/** Share kept for the coarse level, used for wide views where detail is below a pixel. */
+const KEEP_COARSE = 0.07;
 
 // Not countries in any travel sense.
 const EXCLUDE = new Set(['KAS', 'ATC']);
@@ -96,10 +98,14 @@ const features = source.features
     });
   });
 
-let topo = topology({ countries: { type: 'FeatureCollection', features } }, 1e6);
-topo = presimplify(topo);
-topo = simplify(topo, quantile(topo, 1 - KEEP));
-const simplified = feature(topo, topo.objects.countries).features;
+const presimplified = presimplify(topology({ countries: { type: 'FeatureCollection', features } }, 1e6));
+const level = (keep) => {
+  // quantile(p) is the weight that keeps the share p of all points.
+  const topo = simplify(structuredClone(presimplified), quantile(presimplified, keep));
+  return feature(topo, topo.objects.countries).features;
+};
+const simplified = level(KEEP);
+const coarse = new Map(level(KEEP_COARSE).map((f) => [f.id, f]));
 
 const projection = geoNaturalEarth1().fitWidth(WIDTH, { type: 'Sphere' });
 const path = geoPath(projection).digits(2);
@@ -115,12 +121,16 @@ const countries = simplified
     const main = parts.reduce((best, part) => (path.area(part) > path.area(best) ? part : best));
     const [[x0, y0], [x1, y1]] = path.bounds(main);
     const [lx, ly] = projection(f.properties.label);
+    const d = path(f);
+    // Small islands can vanish in the coarse level; they keep their detailed outline.
+    const dc = path(coarse.get(f.id)) || d;
     return {
       id: f.id,
       iso: f.properties.iso,
       name: f.properties.name,
       continent: f.properties.continent,
-      d: path(f),
+      d,
+      dc: dc.length < d.length ? dc : d,
       box: [r2(x0), r2(y0), r2(x1), r2(y1)],
       label: [r2(lx), r2(ly)],
       tiny: Math.max(x1 - x0, y1 - y0) < 3,

@@ -3,11 +3,17 @@ import { atlasCountry } from '../../geo/atlas';
 import type { ContinentId } from '../../geo/continents';
 import type { Insets } from './camera';
 import type { MapController } from './controller';
+import { FOLLOW } from './follow';
 
+/**
+ * State the panels need. It changes only at the start of a move (selection) and when the
+ * camera has arrived (reveal), never during the animation. The map itself does not render
+ * from this store: it applies selection, focus and detail level directly to its DOM.
+ */
 interface MapState {
   /** Chosen continent; set as soon as its transition starts. */
   selected: ContinentId | null;
-  /** The continent whose countries may be shown (phase 3 of the transition reached). */
+  /** The continent whose countries may be shown (the camera has arrived). */
   revealed: ContinentId | null;
   /** Country framed on the country page. */
   focusedCountry: string | null;
@@ -45,9 +51,9 @@ const run = (action: (c: MapController, now: number) => void) => {
 export const mapActions = {
   selectContinent: (id: ContinentId) => run((c, now) => c.select(id, now)),
   clearSelection: () => run((c, now) => c.clear(now)),
-  zoomIn: () => run((c, now) => c.zoomBy(1.6, now, { animate: true })),
-  zoomOut: () => run((c, now) => c.zoomBy(1 / 1.6, now, { animate: true })),
-  panBy: (dx: number, dy: number) => run((c) => c.panBy(dx, dy)),
+  zoomIn: () => run((c, now) => c.zoomBy(1.6, now, { tau: FOLLOW.stepTau })),
+  zoomOut: () => run((c, now) => c.zoomBy(1 / 1.6, now, { tau: FOLLOW.stepTau })),
+  panBy: (dx: number, dy: number) => run((c, now) => c.panBy(dx, dy, now)),
   focusCountry(id: string, insets?: Insets) {
     focusInsets = insets;
     useMapStore.setState({ focusedCountry: id });

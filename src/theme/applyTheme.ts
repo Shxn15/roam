@@ -4,33 +4,44 @@ import type { MotionLevel } from './tokens';
 import type { ThemeRecord } from './types';
 
 const CACHE_KEY = 'roam.theme-cache';
+const STYLE_ID = 'roam-theme';
+const SWITCHING = 'theme-switching';
 
-/** Writes all tokens of `theme` as CSS custom properties onto `root` (default: <html>). */
-export function applyTheme(theme: ThemeRecord, motion: MotionLevel, root: HTMLElement = document.documentElement): void {
-  for (const [name, value] of Object.entries(themeToCssVars(theme, motion))) {
-    root.style.setProperty(name, value);
+/** All tokens of a theme as one `:root` rule. */
+export function themeStylesheet(theme: ThemeRecord, motion: MotionLevel): string {
+  const vars = themeToCssVars(theme, motion);
+  return `:root{${Object.entries(vars)
+    .map(([name, value]) => `${name}:${value}`)
+    .join(';')}}`;
+}
+
+let release = 0;
+
+/**
+ * Applies a theme in one step: a single stylesheet update, so panels and map change in the
+ * same frame and nothing re-renders. While that frame is drawn all transitions are off (no
+ * hover fade on every button); only the backdrop – body and sea – fades briefly.
+ */
+export function applyTheme(theme: ThemeRecord, motion: MotionLevel, doc: Document = document): void {
+  const root = doc.documentElement;
+  let sheet = doc.getElementById(STYLE_ID);
+  if (!sheet) {
+    sheet = doc.createElement('style');
+    sheet.id = STYLE_ID;
+    doc.head.appendChild(sheet);
   }
+  root.classList.add(SWITCHING);
+  sheet.textContent = themeStylesheet(theme, motion);
   const appearance = appearanceOf(theme);
   root.dataset.appearance = appearance;
   root.dataset.motion = motion;
   root.style.colorScheme = appearance;
-}
 
-let fadeTimer: ReturnType<typeof setTimeout> | undefined;
-
-/**
- * Switching between themes cross-fades colors with plain CSS transitions (see
- * `.theme-fading` in global.css). The View Transitions API is deliberately not used:
- * it crashes WebKitGTK, the webview behind Tauri on Linux.
- */
-export function applyThemeSmoothly(theme: ThemeRecord, motion: MotionLevel): void {
-  const root = document.documentElement;
-  if (motion === 'full') {
-    clearTimeout(fadeTimer);
-    root.classList.add('theme-fading');
-    fadeTimer = setTimeout(() => root.classList.remove('theme-fading'), 700);
-  }
-  applyTheme(theme, motion);
+  const view = doc.defaultView;
+  const token = ++release;
+  const done = () => token === release && root.classList.remove(SWITCHING);
+  if (view?.requestAnimationFrame) view.requestAnimationFrame(() => view.requestAnimationFrame(done));
+  else setTimeout(done, 50);
 }
 
 /** The last active theme, so the next start paints in the right colors before the database is open. */

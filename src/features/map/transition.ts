@@ -4,6 +4,7 @@ import type { Route } from './route';
 /**
  * The continent transition in one place, so it is easy to tune. Times in ms.
  * Phase 1 clouds roll in, phase 2 the camera zooms under them, phase 3 they drift away.
+ * The countries appear in the panel once the zoom is over (end of `zoom`).
  */
 export const CONTINENT_TRANSITION = {
   durationMs: 1800,
@@ -43,7 +44,12 @@ export interface TransitionFrame {
   trailOpacity: number;
   /** For the reduced-motion fade. */
   mapOpacity: number;
-  /** Phase 3 reached: the continent's countries may appear. */
+  /**
+   * The map is hidden (clouds closed, or mid-fade): the moment to switch which continent is
+   * emphasized without anyone seeing a jump, so no fade has to run on the map's elements.
+   */
+  covered: boolean;
+  /** The camera arrived: the continent's countries may appear in the panel. */
   revealed: boolean;
   done: boolean;
 }
@@ -90,7 +96,8 @@ export function sampleTransition(tr: Transition, now: number): TransitionFrame {
       planeOpacity: 0,
       trailOpacity: 0,
       mapOpacity: done ? 1 : t < half ? 1 - t / half : (t - half) / half,
-      revealed: t >= half,
+      covered: t >= half,
+      revealed: done,
       done,
     };
   }
@@ -103,7 +110,8 @@ export function sampleTransition(tr: Transition, now: number): TransitionFrame {
       planeOpacity: 0,
       trailOpacity: 0,
       mapOpacity: 1,
-      revealed: true,
+      covered: true,
+      revealed: done,
       done,
     };
   }
@@ -124,7 +132,8 @@ export function sampleTransition(tr: Transition, now: number): TransitionFrame {
     planeOpacity: done ? 0 : clamp01(t / 150) * Math.max(intoClouds, atDestination) * (1 - smoothstep(1600, 1800, t)),
     trailOpacity: done ? 0 : 1 - smoothstep(1450, 1800, t),
     mapOpacity: 1,
-    revealed: t >= T.cloudsOut[0],
+    covered: cover >= 0.999 || t >= T.cloudsIn[1],
+    revealed: t >= T.zoom[1],
     done,
   };
 }

@@ -24,6 +24,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   overflow: hidden;
+  transition: background-color var(--dur-theme) var(--ease-soft);
   /* A desktop app: chrome is not selectable, content opts back in. */
   user-select: none;
   -webkit-user-select: none;
@@ -83,18 +84,12 @@ p {
   scrollbar-color: var(--border-strong) transparent;
 }
 
-/* Briefly set while switching themes, so colors cross-fade instead of jumping. */
-.theme-fading,
-.theme-fading *,
-.theme-fading *::before,
-.theme-fading *::after {
-  transition:
-    background-color var(--dur-slow) var(--ease-soft),
-    border-color var(--dur-slow) var(--ease-soft),
-    color var(--dur-slow) var(--ease-soft),
-    fill var(--dur-slow) var(--ease-soft),
-    stroke var(--dur-slow) var(--ease-soft),
-    box-shadow var(--dur-slow) var(--ease-soft) !important;
+/* Theme switch: one frame with all transitions off (set by applyTheme), so hover fades on
+   buttons and chips do not animate everything. Only the backdrop (body, sea) fades. */
+.theme-switching body *:not([data-theme-fade]),
+.theme-switching body *::before,
+.theme-switching body *::after {
+  transition: none !important;
 }
 
 .visually-hidden {

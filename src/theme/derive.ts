@@ -1,5 +1,6 @@
 import { INK_ANCHOR, PAPER_ANCHOR, contrastRatio, ensureContrast, isLight, mix, mostReadable, rgbTriplet } from './color';
 import { BRAND, DERIVE, FONTS, STATIC_TOKENS, STATUS_COLORS, motionTokens, radiusTokens, type MotionLevel } from './tokens';
+import { mapColorsOf } from './mapColors';
 import type { Appearance, ThemeRecord } from './types';
 
 export type TokenMap = Record<string, string>;
@@ -34,7 +35,7 @@ export function deriveColorTokens(theme: ThemeRecord): TokenMap {
   const textMuted = ensureContrast(ensureContrast(mix(text, surface, 0.38), surface, 4.5), background, 4.5);
   const textSubtle = ensureContrast(mix(text, surface, 0.56), surface, 3);
   const accentText = ensureContrast(ensureContrast(accent, surface, 4.5), background, 4.5);
-  const land = mix(mix(background, surface, k.landFromSurface), text, k.landLift);
+  const map = mapColorsOf(theme);
   const shadowRgb = rgbTriplet(appearance === 'light' ? mix(text, background, 0.2) : mix(background, INK_ANCHOR, 0.75));
 
   const tints: TokenMap = {};
@@ -74,20 +75,22 @@ export function deriveColorTokens(theme: ThemeRecord): TokenMap {
     '--button-text': buttonText,
     ...tints,
     ...statusTokens,
-    '--map-ocean': background,
-    '--map-land': land,
-    '--map-border': mix(border, text, appearance === 'light' ? 0.08 : 0.16),
-    '--map-graticule': mix(background, border, k.graticule),
-    '--map-visited': mix(land, accent, k.visited),
-    '--map-visited-border': mix(accent, text, 0.12),
-    '--map-dim-opacity': '0.4',
+    // The map reads only these variables; a theme switch never re-renders it.
+    '--map-ocean': map.ocean,
+    '--map-land': map.land,
+    '--map-border': map.border,
+    '--map-highlight': map.highlight,
+    '--map-visited': map.highlight,
+    '--map-visited-border': ensureContrast(mix(map.highlight, text, 0.4), map.highlight, 3),
+    '--map-land-hover': mix(map.land, map.highlight, 0.35),
+    '--map-focus': mix(map.highlight, accent, 0.45),
+    '--map-graticule': mix(map.ocean, map.border, 0.2),
+    '--map-dim-opacity': '0.45',
     // Continent transition: soft clouds and the haze behind them.
     '--cloud': appearance === 'light' ? mix(surface, PAPER_ANCHOR, 0.85) : mix(surface, text, 0.34),
     '--cloud-belly': appearance === 'light' ? mix(background, accent, 0.08) : mix(surface, text, 0.16),
     '--cloud-shade': appearance === 'light' ? mix(background, text, 0.24) : mix(background, INK_ANCHOR, 0.5),
     '--cloud-veil': appearance === 'light' ? mix(background, PAPER_ANCHOR, 0.5) : mix(background, text, 0.12),
-    '--map-land-hover': mix(land, accent, appearance === 'light' ? 0.16 : 0.22),
-    '--map-focus': mix(land, accent, appearance === 'light' ? 0.7 : 0.75),
     '--scrim': `rgb(${shadowRgb} / ${appearance === 'light' ? 0.22 : 0.55})`,
     '--logo-ink': appearance === 'light' ? BRAND.nightBlue : BRAND.cream,
     '--logo-plane': appearance === 'light' ? BRAND.periwinkle : BRAND.lavender,

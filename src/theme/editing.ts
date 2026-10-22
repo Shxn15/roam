@@ -9,6 +9,8 @@ import type { ColorRole, ThemeRecord } from './types';
  */
 export function editThemeColor(theme: ThemeRecord, role: ColorRole, hex: string): ThemeRecord {
   const next: ThemeRecord = { ...theme, colors: { ...theme.colors, [role]: hex.toUpperCase() } };
+  // The sea is tuned against the background: a new background gets map colors derived from it.
+  if (role === 'background') delete next.map;
   if (role !== 'background' || isLight(hex) === isLight(theme.colors.background)) return next;
 
   const light = isLight(hex);
@@ -20,10 +22,11 @@ export function editThemeColor(theme: ThemeRecord, role: ColorRole, hex: string)
   return fixContrast(next);
 }
 
-/** True when two themes look the same: equal color roles and tints. */
+/** True when two themes look the same: equal color roles, tints and map colors. */
 export function sameColors(a: ThemeRecord, b: ThemeRecord): boolean {
   return (
     (Object.keys(a.colors) as ColorRole[]).every((role) => a.colors[role] === b.colors[role]) &&
-    a.tints.every((tint, i) => tint === b.tints[i])
+    a.tints.every((tint, i) => tint === b.tints[i]) &&
+    JSON.stringify(a.map ?? null) === JSON.stringify(b.map ?? null)
   );
 }

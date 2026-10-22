@@ -12,36 +12,50 @@ import {
   type Viewport,
   type ZoomLimits,
 } from './camera';
+import { FOLLOW, approach } from './follow';
 import { makeRoute } from './route';
 import { createTransition, sampleTransition, type Transition, type TransitionFrame } from './transition';
 
 export interface MapEvents {
-  /** The selected continent changed (immediately when a transition starts). */
+  /** The chosen continent (immediately, for the panels' selection state). */
   onSelect?(continent: ContinentId | null): void;
-  /** Phase 3 of a transition: the selected continent is visible, its countries may appear. */
+  /** The camera arrived at the continent: its countries may appear in the panel. */
   onReveal?(continent: ContinentId | null): void;
+  /** Which continent the map emphasizes. Fired while the map is covered or fading. */
+  onMapSelection?(continent: ContinentId | null): void;
+  /** Nothing moves any more: the moment for work that would stutter during motion (detail level). */
+  onRest?(camera: Camera): void;
 }
 
-const IDLE_FRAME = (camera: Camera): TransitionFrame => ({
+/** What drives the camera: an eased, timed move (tween) or damped following of a target. */
+type Motion =
+  | { kind: 'tween'; tr: Transition }
+  | { kind: 'follow'; target: Camera; anchor: Point; tau: number; last: number | null };
+
+const stillFrame = (camera: Camera): TransitionFrame => ({
   camera,
   cover: 0,
   flight: 0,
   planeOpacity: 0,
   trailOpacity: 0,
   mapOpacity: 1,
+  covered: true,
   revealed: true,
   done: true,
 });
 
 /**
- * Owns the camera and the running transition. Framework-free and driven by explicit
- * timestamps, so the whole timeline can be tested without a browser.
+ * Owns the camera. Every movement – continent flights, country zoom, wheel, drag, keys –
+ * runs through `tick`, called from one requestAnimationFrame loop. Framework-free and driven
+ * by explicit timestamps, so it can be tested without a browser.
  */
 export class MapController {
   camera: Camera;
-  transition: Transition | null = null;
   selected: ContinentId | null = null;
   revealed: ContinentId | null = null;
+  /** The continent the map currently emphasizes (lags behind `selected` until covered). */
+  mapSelected: ContinentId | null = null;
+  private motion: Motion | null = null;
   private viewport: Viewport;
   /** The user panned or zoomed by hand since the last automatic framing. */
   private manual = false;
@@ -50,11 +64,27 @@ export class MapController {
 
   constructor(
     viewport: Viewport,
-    private motion: () => MotionLevel,
+    private motionLevel: () => MotionLevel,
     private events: MapEvents = {},
   ) {
     this.viewport = viewport;
     this.camera = this.restingCamera();
+  }
+
+  /** A programmatic, timed move (continent flight, country zoom, glide back). */
+  get transition(): Transition | null {
+    return this.motion?.kind === 'tween' ? this.motion.tr : null;
+  }
+
+  get animating(): boolean {
+    return this.motion !== null;
+  }
+
+  /** Where the camera is heading (the end of a tween or the follow target). */
+  get target(): Camera {
+    if (this.motion?.kind === 'tween') return this.motion.tr.to;
+    if (this.motion?.kind === 'follow') return this.motion.target;
+    return this.camera;
   }
 
   get limits(): ZoomLimits {
@@ -70,21 +100,25 @@ export class MapController {
 
   setViewport(viewport: Viewport): void {
     this.viewport = viewport;
-    if (this.transition) {
-      this.transition = { ...this.transition, to: this.restingCamera() };
+    if (this.motion?.kind === 'tween') {
+      this.motion.tr = { ...this.motion.tr, to: this.restingCamera() };
+      return;
+    }
+    if (this.motion?.kind === 'follow') {
+      this.motion.target = this.clamp(this.motion.target);
       return;
     }
     this.camera = this.manual ? this.clamp(this.camera) : this.restingCamera();
   }
 
-  /** The current frame of a running transition, or a still frame. */
+  /** The frame for `now` without advancing anything. */
   frameAt(now: number): TransitionFrame {
-    return this.transition ? sampleTransition(this.transition, now) : IDLE_FRAME(this.camera);
+    return this.motion?.kind === 'tween' ? sampleTransition(this.motion.tr, now) : stillFrame(this.camera);
   }
 
   /** Flies to a continent. A second call while one is running retargets from wherever we are. */
   select(continent: ContinentId, now: number): void {
-    if (continent === this.selected && !this.transition && !this.manual && !this.focus) return;
+    if (continent === this.selected && !this.motion && !this.manual && !this.focus) return;
     const current = this.frameAt(now);
     this.selected = continent;
     this.revealed = null;
@@ -93,24 +127,27 @@ export class MapController {
     this.events.onSelect?.(continent);
     this.events.onReveal?.(null);
 
-    const reduced = this.motion() === 'reduced';
+    const reduced = this.motionLevel() === 'reduced';
     const box = continentBox(continent);
     const from = current.camera;
-    this.transition = createTransition({
-      kind: reduced ? 'fade' : 'clouds',
-      now,
-      from,
-      to: fitBox(box, this.viewport),
-      viewport: this.viewport,
-      startCover: current.cover,
-      route: reduced ? null : makeRoute(screenToMap(from, viewCenter(this.viewport)), boxCenter(box)),
-    });
     this.camera = from;
+    this.motion = {
+      kind: 'tween',
+      tr: createTransition({
+        kind: reduced ? 'fade' : 'clouds',
+        now,
+        from,
+        to: fitBox(box, this.viewport),
+        viewport: this.viewport,
+        startCover: current.cover,
+        route: reduced ? null : makeRoute(screenToMap(from, viewCenter(this.viewport)), boxCenter(box)),
+      }),
+    };
   }
 
   /** Back to the whole world (Escape). */
   clear(now: number): void {
-    if (!this.selected && !this.focus && !this.manual && !this.transition) return;
+    if (!this.selected && !this.focus && !this.manual && !this.motion) return;
     const current = this.frameAt(now);
     this.selected = null;
     this.revealed = null;
@@ -118,70 +155,118 @@ export class MapController {
     this.manual = false;
     this.events.onSelect?.(null);
     this.events.onReveal?.(null);
-    this.glideTo(this.restingCamera(), now, current);
+    this.tweenTo(this.restingCamera(), now, current);
   }
 
-  /** Frames a country (its main part) beside a panel, e.g. on the country page. */
+  /** Zooms to a country (its main part) beside a panel: the same loop, with an ease curve. */
   focusBox(box: Box, insets: Viewport['insets'] | undefined, now: number): void {
     const current = this.frameAt(now);
     this.focus = { box: padBox(box, 14), insets };
     this.manual = false;
-    this.glideTo(this.restingCamera(), now, current);
+    this.tweenTo(this.restingCamera(), now, current);
   }
 
   releaseFocus(now: number): void {
     if (!this.focus) return;
     const current = this.frameAt(now);
     this.focus = null;
-    this.glideTo(this.restingCamera(), now, current);
+    this.tweenTo(this.restingCamera(), now, current);
   }
 
-  /** Zoom by a factor around a screen point (default: the view center). */
-  zoomBy(factor: number, now: number, options: { anchor?: Point; animate?: boolean } = {}): void {
-    this.finish();
+  /** Zoom by a factor around a screen point (default: the view center). Damped. */
+  zoomBy(factor: number, now: number, options: { anchor?: Point; tau?: number } = {}): void {
     const anchor = options.anchor ?? viewCenter(this.viewport);
-    const target = this.clamp(zoomAround(this.camera, factor, anchor, this.limits));
-    this.manual = true;
-    if (options.animate) this.glideTo(target, now, this.frameAt(now), 260);
-    else this.camera = target;
+    this.follow((t) => zoomAround(t, factor, anchor, this.limits), anchor, options.tau ?? FOLLOW.zoomTau, now);
   }
 
-  panBy(dx: number, dy: number): void {
-    this.finish();
-    this.manual = true;
-    this.camera = this.clamp({ ...this.camera, x: this.camera.x + dx, y: this.camera.y + dy });
+  /** Moves the map by screen pixels (drag, arrow keys). Damped. */
+  panBy(dx: number, dy: number, now: number, options: { anchor?: Point; tau?: number } = {}): void {
+    const anchor = options.anchor ?? viewCenter(this.viewport);
+    this.follow((t) => ({ ...t, x: t.x + dx, y: t.y + dy }), anchor, options.tau ?? FOLLOW.stepTau, now);
   }
 
-  /** Advances time. Returns the frame to draw. */
+  /** Lets a drag glide out at the speed it was released with (px per ms). */
+  fling(vx: number, vy: number, now: number): void {
+    const scale = Math.min(1, FOLLOW.maxFlingPx / Math.max(1e-6, Math.hypot(vx, vy) * FOLLOW.flingMs));
+    const dx = vx * FOLLOW.flingMs * scale;
+    const dy = vy * FOLLOW.flingMs * scale;
+    if (Math.hypot(dx, dy) < 2) return;
+    this.panBy(dx, dy, now, { tau: FOLLOW.stepTau });
+  }
+
+  /** Advances time by one frame. */
   tick(now: number): TransitionFrame {
-    const frame = this.frameAt(now);
+    const motion = this.motion;
+    if (!motion) return stillFrame(this.camera);
+
+    if (motion.kind === 'follow') {
+      const dt = motion.last === null ? 16 : now - motion.last;
+      motion.last = now;
+      const step = approach(this.camera, motion.target, motion.anchor, dt, motion.tau);
+      this.camera = step.camera;
+      if (step.done) this.settle();
+      return stillFrame(this.camera);
+    }
+
+    const frame = sampleTransition(motion.tr, now);
     this.camera = frame.camera;
-    if (this.transition && frame.revealed && this.revealed !== this.selected) {
+    if (frame.covered && this.mapSelected !== this.selected) {
+      this.mapSelected = this.selected;
+      this.events.onMapSelection?.(this.selected);
+    }
+    if (frame.revealed && this.revealed !== this.selected) {
       this.revealed = this.selected;
       this.events.onReveal?.(this.selected);
     }
-    if (this.transition && frame.done) this.transition = null;
+    if (frame.done) this.settle();
     return frame;
   }
 
-  /** Jumps to the end of a running transition (used before manual pan and zoom). */
+  /** Jumps to the end of a running tween (used before manual input during a continent flight). */
   finish(): void {
-    if (!this.transition) return;
-    this.tick(this.transition.startedAt + this.transition.duration);
+    if (this.motion?.kind !== 'tween') return;
+    const tr = this.motion.tr;
+    this.tick(tr.startedAt + tr.duration);
   }
 
-  private glideTo(to: Camera, now: number, current: TransitionFrame, duration?: number): void {
-    const reduced = this.motion() === 'reduced';
-    this.transition = createTransition({
-      kind: reduced ? 'fade' : 'glide',
-      now,
-      from: current.camera,
-      to,
-      viewport: this.viewport,
-      startCover: current.cover,
-      duration: reduced ? undefined : duration,
-    });
+  private settle(): void {
+    this.motion = null;
+    this.events.onRest?.(this.camera);
+  }
+
+  /** Starts or extends damped following. Manual input interrupts programmatic moves. */
+  private follow(update: (target: Camera) => Camera, anchor: Point, tau: number, now: number): void {
+    let last: number | null = null;
+    if (this.motion?.kind === 'tween') {
+      if (this.motion.tr.kind === 'glide') {
+        // Stop a glide where it is and take over from there.
+        this.camera = sampleTransition(this.motion.tr, now).camera;
+        this.motion = null;
+      } else {
+        // Continent flights finish at once (clouds cleared) before the user takes over.
+        this.finish();
+      }
+    }
+    if (this.motion?.kind === 'follow') last = this.motion.last;
+    const base = this.motion?.kind === 'follow' ? this.motion.target : this.camera;
+    this.manual = true;
+    this.motion = { kind: 'follow', target: this.clamp(update(base)), anchor, tau, last };
+  }
+
+  private tweenTo(to: Camera, now: number, current: TransitionFrame): void {
+    const reduced = this.motionLevel() === 'reduced';
     this.camera = current.camera;
+    this.motion = {
+      kind: 'tween',
+      tr: createTransition({
+        kind: reduced ? 'fade' : 'glide',
+        now,
+        from: current.camera,
+        to,
+        viewport: this.viewport,
+        startCover: current.cover,
+      }),
+    };
   }
 
   private clamp(c: Camera): Camera {
@@ -197,3 +282,7 @@ function padBox(box: Box, minSize: number): Box {
   const padY = Math.max(h * 0.35, (minSize - h) / 2);
   return [box[0] - padX, box[1] - padY, box[2] + padX, box[3] + padY];
 }
+
+/** Detail level for a zoom: the coarse outlines are enough while 1 map unit is under ~1.8 px. */
+export const LOD_FINE_FROM_K = 1.8;
+export const lodFor = (k: number): 'coarse' | 'fine' => (k >= LOD_FINE_FROM_K ? 'fine' : 'coarse');

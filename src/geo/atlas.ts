@@ -11,8 +11,10 @@ export interface AtlasCountry {
   iso: string | null;
   name: string;
   continent: ContinentId;
-  /** SVG path, pre-projected (Natural Earth) into the reference space. */
+  /** SVG path, pre-projected (Natural Earth) into the reference space. Detailed. */
   d: string;
+  /** The same outline, coarse: enough for wide views, much cheaper to draw. */
+  dc: string;
   /** Bounds of the country's largest part. */
   box: Box;
   label: [number, number];

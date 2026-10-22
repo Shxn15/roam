@@ -4,7 +4,7 @@ import { getSetting, setSetting } from '../db/repos/settings';
 import { deleteCustomTheme, listCustomThemes, saveCustomTheme } from '../db/repos/themes';
 import { isMotionPreference, resolveMotion, type MotionPreference } from '../motion/preference';
 import { reportError } from '../ui/toast';
-import { applyTheme, applyThemeSmoothly, cacheTheme } from './applyTheme';
+import { applyTheme, cacheTheme } from './applyTheme';
 import { createCustomTheme, resetBase } from './custom';
 import { editThemeColor, sameColors } from './editing';
 import { DEFAULT_THEME_ID, PRESETS, defaultTheme, isPresetId } from './presets';
@@ -79,7 +79,10 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   resetToPreset() {
     const current = effectiveTheme(get());
     const base = resetBase(current);
-    set({ draft: { ...current, colors: { ...base.colors }, tints: [...base.tints] } });
+    const reset: ThemeRecord = { ...current, colors: { ...base.colors }, tints: [...base.tints] };
+    if (base.map) reset.map = { ...base.map };
+    else delete reset.map;
+    set({ draft: reset });
   },
 
   discardDraft() {
@@ -133,11 +136,8 @@ export function startThemeSync(): () => void {
     const theme = effectiveTheme(s);
     const before = effectiveTheme(prev);
     const motion = motionLevel(s);
-    if (theme !== before || motion !== motionLevel(prev)) {
-      // Picking another theme cross-fades; editing colors updates instantly.
-      if (theme.id !== before.id) applyThemeSmoothly(theme, motion);
-      else applyTheme(theme, motion);
-    }
+    // One stylesheet update per change, whether a new theme was picked or a color edited.
+    if (theme !== before || motion !== motionLevel(prev)) applyTheme(theme, motion);
     if (s.activeId !== prev.activeId || s.custom !== prev.custom) cacheTheme(activeTheme(s));
   });
 }

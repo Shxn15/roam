@@ -27,6 +27,33 @@ Eine ruhige Desktop-App zum Recherchieren, Planen und Träumen von Reisen. Tauri
 - **Panels:** Suche (Länder nach Name, auch „oesterreich“ oder „USA“), Kontinente mit „besucht / gesamt“, Länderchips des gewählten Kontinents, Reisekarten mit Status, Tagen und Fortschritt, Zoom-Steuerung.
 - **Länderseite** `/land/:id` als Platzhalter für Schritt 3: Sie rahmt das Land auf der Karte und hat einen Schalter „Schon dort gewesen“ mit Jahr.
 
+### Nachtrag zu Schritt 2: flüssige Karte, Themewechsel ohne Lag, Kontrast
+
+- **Zoom und Verschieben:** Mausrad, Trackpad, Ziehen und Tasten setzen nur noch ein Ziel. Eine einzige `requestAnimationFrame`-Schleife führt die Kamera gedämpft dorthin (`src/features/map/follow.ts`). Während der Bewegung rendert React nicht, gesetzt wird nur das `transform` der Kartengruppe.
+- **Detailstufen:** Jedes Land liegt grob und fein vor. Gewechselt wird erst, wenn die Karte stillsteht.
+- **Land-Zoom** läuft über dieselbe Schleife mit Ease-Kurve. Die Panels aktualisieren sich erst danach.
+- **Themewechsel:** Ein einziges Stylesheet am Root-Element, keine Übergänge während des Wechsels, nur der Hintergrund blendet 180 ms. Wolken und Mini-Karten sind CSS-Masken, die Theme-Karten werden nicht neu gerendert.
+- **Kartenkontrast:** Land, Meer, Grenze und Hervorhebung sind eigene Tokens pro Preset. Ein Test verlangt mindestens 8 OKLCH-Punkte zwischen Land und Meer und 3 : 1 für Grenzen.
+
+Gemessen im Container ohne GPU bei 1440 × 900 (Bench mit `VITE_ROAM_BENCH=1`, Median aus drei Läufen):
+
+| Messung | Chromium vorher | Chromium nachher | Desktop-App (WebKitGTK) vorher | WebKitGTK nachher |
+| --- | --- | --- | --- | --- |
+| Mausrad-Zoom | 60 fps, aber nur 16 % der Frames bewegen sich (ruckartig) | 60 fps, 99 % bewegen sich | 57 fps, 16 % bewegen sich | 45 fps, 100 % bewegen sich |
+| Trackpad-Zoom | 50 fps | 60 fps | 24 fps | 45 fps |
+| Ziehen | 60 fps | 60 fps | 59 fps | 62 fps |
+| Land-Zoom | 60 fps | 60 fps | 50 fps | 61 fps |
+| Themewechsel, Karte sichtbar | 126 ms | 33 ms | 157 ms | 75 ms |
+| Themewechsel aus den Einstellungen | 218 ms | 33 ms | 280 ms | 197 ms |
+
+| Preset | Land/Meer vorher | Land/Meer nachher | Grenze nachher |
+| --- | --- | --- | --- |
+| Standard | 3,2 Punkte | 10,0 Punkte | 3,8 : 1 |
+| Pastell Bento | 2,3 | 11,1 | 3,9 : 1 |
+| Dunkel | 9,2 | 14,2 | 3,6 : 1 |
+| Warm dunkel | 8,6 | 13,9 | 3,6 : 1 |
+| Weiß mit Akzent | 2,4 | 10,1 | 3,7 : 1 |
+
 ### Bedienung der Karte
 
 | Aktion | Maus | Tastatur |
@@ -42,6 +69,7 @@ Eine ruhige Desktop-App zum Recherchieren, Planen und Träumen von Reisen. Tauri
 - **Reise anlegen** fehlt noch, das kommt in Schritt 3. Bis dahin bleibt die Reiseleiste in einer frischen Installation leer. Im Browser-Vorschaumodus legt `await roamDemo.seed()` in der Konsole Beispieldaten an (nur im Entwicklungsmodus enthalten).
 - **Fortschritt** einer Reise ist vorerst: abgeschlossen = 100 %, unterwegs = vergangene Tage / Tage, sonst 0 %. Ab dem Tagesplan (Schritt 4) zählt die geplante Zeit.
 - **Performance auf echter Hardware messen:** Im Container ohne GPU läuft der Übergang mit etwa 30 fps, die Karte allein mit 60 fps. Mit Grafikkarte (WebView2, WKWebView) sollte er flüssig sein; geprüft ist das nicht.
+- **Themewechsel aus den Einstellungen in der Linux-App:** 197 ms statt der angestrebten 150 ms. WebKitGTK zeichnet dort das große Einstellungsfenster per Software neu, ein einzelner Verursacher war nicht zu finden (die Vorschau ausgeblendet spart etwa 45 ms). Im Browser sind es 33 ms, auf Windows (WebView2 mit GPU) ist es nicht gemessen.
 - **Ozeanien** rahmt Australien, Neuseeland und Melanesien. Inseln jenseits der Datumsgrenze (Samoa, Tonga, Französisch-Polynesien) liegen am linken Kartenrand und sind über Chips und Suche erreichbar.
 - **Zählung:** Natural Earth führt auch abhängige Gebiete (Grönland, Hongkong, Puerto Rico …). Deshalb hat zum Beispiel Afrika 59 statt 54 Einträge. Eine Trennung in Staaten und Gebiete wäre in Schritt 7 möglich.
 - **Flug zum Land** (Schritt 3) nutzt dieselben Ebenen, der Pop-Effekt folgt in Schritt 9.
@@ -158,5 +186,8 @@ scripts/       build-atlas.mjs (Natural Earth → atlas.json)
 - Kamera-Mathematik, Flugroute und Wolkenpositionen
 - Übergangs-Timeline: Wolken, Zoom, Flugzeug, Aufdecken
 - Unterbrechung mitten im Flug und beim Aufklaren (die Karte endet auf dem neuen Kontinent), Escape, reduzierte Bewegung
+- gedämpftes Folgen endet exakt auf dem Ziel, auch bei Zoom um den Mauszeiger
+- ein Themewechsel ändert nur die CSS-Variablen, die Karte rendert dabei nicht neu (jsdom)
+- jedes Preset hat zwischen Land und Meer mindestens 8 OKLCH-Punkte und lesbare Grenzen
 
 Ab den nächsten Meilensteinen kommen Budgetsummen und Zeitblock-Überschneidungen hinzu.

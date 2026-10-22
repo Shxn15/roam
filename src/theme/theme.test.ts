@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { contrastRatio, ensureContrast, isLight, mix, normalizeHex, parseHex } from './color';
 import { allReadable, checkContrast, fixContrast } from './contrast';
 import { appearanceOf, deriveColorTokens, themeToCssVars } from './derive';
+import { editThemeColor } from './editing';
+import { MAP_MIN_BORDER_CONTRAST, MAP_MIN_LIGHTNESS_GAP, deriveMapColors, mapContrast } from './mapColors';
 import { PRESETS, defaultTheme } from './presets';
 import { ThemeValidationError, parseTheme } from './schema';
 import type { ThemeRecord } from './types';
@@ -104,7 +106,7 @@ describe('token derivation', () => {
     expect(vars['--radius-lg']).toBe('16px');
     expect(vars['--dur-journey']).toBe('200ms');
     expect(vars['--font-display']).toContain('Fraunces');
-    expect(vars['--map-ocean']).toBe(defaultTheme().colors.background);
+    expect(vars['--map-ocean']).toBe(defaultTheme().map!.ocean);
     expect(Object.values(vars).every((v) => typeof v === 'string' && v.length > 0)).toBe(true);
   });
 
@@ -114,6 +116,55 @@ describe('token derivation', () => {
       expect(t['--map-land']).not.toBe(t['--map-ocean']);
       expect(isLight(t['--map-land']!)).toBe(isLight(t['--map-ocean']!));
     }
+  });
+});
+
+describe('map colors', () => {
+  it.each(PRESETS.map((p) => [p.name, p] as const))('%s separates land and sea clearly', (_name, preset) => {
+    expect(preset.map).toBeDefined();
+    const report = mapContrast(preset);
+    expect(report.lightnessGap).toBeGreaterThanOrEqual(MAP_MIN_LIGHTNESS_GAP);
+    expect(report.borderContrast).toBeGreaterThanOrEqual(MAP_MIN_BORDER_CONTRAST);
+    expect(report.seaDarker).toBe(true);
+    expect(report.seaCooler).toBe(true);
+  });
+
+  it('uses the pastel palette for Pastell Bento: lavender sea, butter land, mint highlight', () => {
+    const bento = PRESETS.find((p) => p.id === 'pastell-bento')!;
+    const hue = (hex: string) => {
+      const { r, g, b } = parseHex(hex);
+      return { r, g, b };
+    };
+    const sea = hue(bento.map!.ocean);
+    const land = hue(bento.map!.land);
+    const mint = hue(bento.map!.highlight);
+    expect(sea.b).toBeGreaterThan(sea.g); // lavender: blue/red over green
+    expect(land.r).toBeGreaterThan(land.b); // butter: warm
+    expect(mint.g).toBeGreaterThan(mint.r); // mint: green
+  });
+
+  it.each(['#F2EDE4', '#FFFFFF', '#E8F0E8', '#C9C2B8', '#14152B', '#1C1612', '#2A3A3A', '#000814'])(
+    'derives readable map colors for a custom background %s',
+    (background) => {
+      const theme = editThemeColor(defaultTheme(), 'background', background);
+      expect(theme.map).toBeUndefined();
+      const report = mapContrast(theme);
+      expect(report.lightnessGap).toBeGreaterThanOrEqual(MAP_MIN_LIGHTNESS_GAP);
+      expect(report.borderContrast).toBeGreaterThanOrEqual(MAP_MIN_BORDER_CONTRAST);
+      expect(report.seaDarker || report.lightnessGap >= MAP_MIN_LIGHTNESS_GAP).toBe(true);
+    },
+  );
+
+  it('keeps preset map colors when only the accent changes', () => {
+    const edited = editThemeColor(defaultTheme(), 'accent', '#2F8577');
+    expect(edited.map).toEqual(defaultTheme().map);
+    expect(deriveColorTokens(edited)['--map-ocean']).toBe(defaultTheme().map!.ocean);
+  });
+
+  it('derives map colors that follow the rules even without a preset', () => {
+    const { map: _ignored, ...withoutMap } = defaultTheme();
+    const derived = deriveMapColors(withoutMap);
+    expect(derived.ocean).not.toBe(defaultTheme().colors.background);
   });
 });
 
@@ -151,6 +202,11 @@ describe('theme JSON validation', () => {
     expect(parseTheme(valid)).toEqual(defaultTheme());
   });
 
+  it('accepts records without map colors (custom themes from before the map tokens)', () => {
+    const { map: _ignored, ...older } = valid;
+    expect(parseTheme(older).map).toBeUndefined();
+  });
+
   it.each([
     ['wrong version', { ...valid, schemaVersion: 2 }],
     ['bad id', { ...valid, id: 'Mein Theme!' }],
@@ -159,6 +215,8 @@ describe('theme JSON validation', () => {
     ['three tints', { ...valid, tints: ['#FFFFFF', '#FFFFFF', '#FFFFFF'] }],
     ['unknown font', { ...valid, fonts: { display: 'comic-sans', body: 'jakarta' } }],
     ['radius too big', { ...valid, radius: 80 }],
+    ['bad map color', { ...valid, map: { ...(valid.map as object), land: 'weiß' } }],
+    ['incomplete map', { ...valid, map: { ocean: '#CDDCE4' } }],
   ])('rejects %s', (_label, input) => {
     expect(() => parseTheme(input)).toThrow(ThemeValidationError);
   });

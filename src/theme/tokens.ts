@@ -81,8 +81,8 @@ export function radiusTokens(base: number): Record<string, string> {
  * With reduced motion, movement is replaced by short fades.
  */
 export const MOTION = {
-  full: { fast: 140, base: 240, slow: 480, journey: 1800 },
-  reduced: { fast: 0, base: 0, slow: 120, journey: 200 },
+  full: { fast: 140, base: 240, slow: 480, journey: 1800, theme: 180 },
+  reduced: { fast: 0, base: 0, slow: 120, journey: 200, theme: 0 },
   ease: {
     soft: 'cubic-bezier(0.22, 0.8, 0.24, 1)',
     inOut: 'cubic-bezier(0.65, 0, 0.35, 1)',
@@ -98,6 +98,8 @@ export function motionTokens(level: MotionLevel): Record<string, string> {
     '--dur-base': `${d.base}ms`,
     '--dur-slow': `${d.slow}ms`,
     '--dur-journey': `${d.journey}ms`,
+    // Theme switch: only the backdrop fades, and briefly.
+    '--dur-theme': `${d.theme}ms`,
     '--ease-soft': MOTION.ease.soft,
     '--ease-in-out': MOTION.ease.inOut,
   };
@@ -119,6 +121,6 @@ export const BRAND = {
 
 /** How strongly derived tones lean on their sources, per appearance. */
 export const DERIVE = {
-  light: { accentSoft: 0.14, landFromSurface: 0.7, landLift: 0, graticule: 0.6, visited: 0.42, shadowAlpha: 0.1, sunken: 0.55 },
-  dark: { accentSoft: 0.24, landFromSurface: 1, landLift: 0.05, graticule: 0.4, visited: 0.5, shadowAlpha: 0.42, sunken: 0.6 },
+  light: { accentSoft: 0.14, shadowAlpha: 0.1, sunken: 0.55 },
+  dark: { accentSoft: 0.24, shadowAlpha: 0.42, sunken: 0.6 },
 } as const;

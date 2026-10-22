@@ -13,6 +13,7 @@
     "buttonText": "#FFFFFF"
   },
   "tints": ["#ECE8FF", "#E3EDFF", "#DDF5EA", "#FFF2CC"],
+  "map": { "ocean": "#D6DFE8", "land": "#FFFFFF", "border": "#82868E", "highlight": "#9CB5F8" },
   "fonts": { "display": "bricolage", "body": "jakarta" },
   "radius": 14
 }

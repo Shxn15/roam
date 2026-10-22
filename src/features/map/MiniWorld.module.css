@@ -1,6 +1,9 @@
-.land {
-  fill: var(--map-land);
-  stroke: var(--map-border);
-  stroke-width: 0.6;
-  stroke-linejoin: round;
+.world {
+  background: var(--map-land);
+  -webkit-mask-size: cover;
+  mask-size: cover;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }

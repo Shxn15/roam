@@ -1,9 +1,14 @@
+/* The world map. No transitions on paths or groups: every change is either one frame
+   (selection under the clouds, detail level at rest) or driven by the animation loop. */
+
 .map {
   position: absolute;
   inset: 0;
   overflow: hidden;
   background: var(--map-ocean);
   touch-action: none;
+  /* The sea is the only map color that fades on a theme switch (see global.css). */
+  transition: background-color var(--dur-theme) var(--ease-soft);
 }
 
 .svg,
@@ -13,8 +18,10 @@
   display: block;
 }
 
+/* The map layer gets its own compositing layer; it moves by one transform on one group. */
 .svg {
   cursor: grab;
+  will-change: transform;
 }
 
 .svg:active {
@@ -26,34 +33,25 @@
 }
 
 .sphere {
-  fill: var(--map-ocean);
+  fill: none;
   stroke: var(--map-graticule);
-  stroke-width: 1.5;
+  stroke-width: 1.2;
   vector-effect: non-scaling-stroke;
 }
 
 .graticule {
   fill: none;
   stroke: var(--map-graticule);
-  stroke-width: 0.75;
+  stroke-width: 0.6;
   vector-effect: non-scaling-stroke;
-}
-
-.continent {
-  transition: opacity calc(var(--dur-journey) * 0.55) var(--ease-in-out);
-}
-
-.dimmed {
-  opacity: var(--map-dim-opacity);
 }
 
 .country {
   fill: var(--map-land);
   stroke: var(--map-border);
-  stroke-width: 0.7;
+  stroke-width: 0.6;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
-  transition: fill var(--dur-base) var(--ease-soft);
 }
 
 .country:hover {
@@ -65,36 +63,49 @@
   stroke: var(--map-visited-border);
 }
 
-.country.focused {
-  fill: var(--map-focus);
-  stroke: var(--accent);
+/* Level of detail, switched only when the map is at rest. */
+.svg[data-lod='fine'] .coarse,
+.svg:not([data-lod='fine']) .fine {
+  display: none;
 }
 
-/* Small states are dots; they keep their size on screen whatever the zoom. */
+/* The emphasized continent; set while the clouds cover the map, so nothing has to fade. */
+.svg[data-selected='africa'] .continent:not([data-continent='africa']),
+.svg[data-selected='antarctica'] .continent:not([data-continent='antarctica']),
+.svg[data-selected='asia'] .continent:not([data-continent='asia']),
+.svg[data-selected='europe'] .continent:not([data-continent='europe']),
+.svg[data-selected='north-america'] .continent:not([data-continent='north-america']),
+.svg[data-selected='oceania'] .continent:not([data-continent='oceania']),
+.svg[data-selected='south-america'] .continent:not([data-continent='south-america']) {
+  opacity: var(--map-dim-opacity);
+}
+
+/* Small states are dots that keep their size on screen whatever the zoom (--k on .dots only). */
 .dot {
   display: none;
   fill: var(--map-land);
-  stroke: var(--border-strong);
-  stroke-width: 1.2;
+  stroke: var(--map-border);
+  stroke-width: 0.6;
   vector-effect: non-scaling-stroke;
   transform-box: fill-box;
   transform-origin: center;
   transform: scale(calc(1 / var(--k, 1)));
 }
 
-.current .dot,
-.dot.visited,
-.dot.focused {
+.svg[data-selected='africa'] .dots [data-continent='africa'] .dot,
+.svg[data-selected='antarctica'] .dots [data-continent='antarctica'] .dot,
+.svg[data-selected='asia'] .dots [data-continent='asia'] .dot,
+.svg[data-selected='europe'] .dots [data-continent='europe'] .dot,
+.svg[data-selected='north-america'] .dots [data-continent='north-america'] .dot,
+.svg[data-selected='oceania'] .dots [data-continent='oceania'] .dot,
+.svg[data-selected='south-america'] .dots [data-continent='south-america'] .dot,
+.dot.visited {
   display: inline;
 }
 
 .dot.visited {
   fill: var(--map-visited);
   stroke: var(--map-visited-border);
-}
-
-.dot.focused {
-  fill: var(--accent);
 }
 
 .trailMask {

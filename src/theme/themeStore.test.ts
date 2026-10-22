@@ -1,48 +1,60 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+// @vitest-environment jsdom
+import { describe, expect, it, vi } from 'vitest';
 import { setDb } from '../db/instance';
 import { getSetting } from '../db/repos/settings';
 import { createTestDb } from '../db/testing';
 import { findPreset } from './presets';
 import { startThemeSync, useThemeStore } from './themeStore';
 
-/** Just enough of <html> for applyTheme: custom properties, data attributes, classes. */
-function fakeRoot() {
-  const props = new Map<string, string>();
-  const classes = new Set<string>();
-  return {
-    props,
-    dataset: {} as Record<string, string>,
-    style: { setProperty: (name: string, value: string) => props.set(name, value), colorScheme: '' },
-    classList: { add: (c: string) => classes.add(c), remove: (c: string) => classes.delete(c) },
-  };
+/** The custom properties currently set by the theme stylesheet. */
+function themeVars(): Map<string, string> {
+  const text = document.getElementById('roam-theme')?.textContent ?? '';
+  return new Map(
+    text
+      .replace(/^:root\{|\}$/g, '')
+      .split(';')
+      .map((decl) => [decl.slice(0, decl.indexOf(':')), decl.slice(decl.indexOf(':') + 1)] as [string, string]),
+  );
 }
 
 describe('switching the theme', () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  it('changes the applied token values and remembers the choice', async () => {
+  it('changes the token values in one stylesheet and remembers the choice', async () => {
     const db = await createTestDb();
     setDb(db);
-    const root = fakeRoot();
-    vi.stubGlobal('document', { documentElement: root });
     useThemeStore.setState({ activeId: 'standard', draft: null, custom: [], motionPreference: 'full' });
     const stop = startThemeSync();
 
     useThemeStore.getState().select('dunkel');
     const dunkel = findPreset('dunkel')!;
-    expect(root.props.get('--bg')).toBe(dunkel.colors.background);
-    expect(root.props.get('--accent')).toBe(dunkel.colors.accent);
-    expect(root.props.get('--font-display')).toContain('Fraunces');
-    expect(root.dataset.appearance).toBe('dark');
+    let vars = themeVars();
+    expect(vars.get('--bg')).toBe(dunkel.colors.background);
+    expect(vars.get('--accent')).toBe(dunkel.colors.accent);
+    expect(vars.get('--map-land')).toBe(dunkel.map!.land);
+    expect(vars.get('--map-ocean')).toBe(dunkel.map!.ocean);
+    expect(vars.get('--font-display')).toContain('Fraunces');
+    expect(document.documentElement.dataset.appearance).toBe('dark');
 
     useThemeStore.getState().select('pastell-bento');
     const bento = findPreset('pastell-bento')!;
-    expect(root.props.get('--bg')).toBe(bento.colors.background);
-    expect(root.props.get('--tint-2')).toBe(bento.tints[1]);
-    expect(root.props.get('--font-display')).toContain('Bricolage');
-    expect(root.dataset.appearance).toBe('light');
+    vars = themeVars();
+    expect(vars.get('--bg')).toBe(bento.colors.background);
+    expect(vars.get('--tint-2')).toBe(bento.tints[1]);
+    expect(vars.get('--map-highlight')).toBe(bento.map!.highlight);
+    expect(vars.get('--font-display')).toContain('Bricolage');
+    expect(document.documentElement.dataset.appearance).toBe('light');
 
+    // One stylesheet, rewritten in place: a single update per switch.
+    expect(document.querySelectorAll('#roam-theme')).toHaveLength(1);
     await vi.waitFor(async () => expect(await getSetting(db, 'theme.active')).toBe('pastell-bento'));
+    stop();
+  });
+
+  it('turns transitions off for the frame of the switch only', async () => {
+    useThemeStore.setState({ activeId: 'standard', draft: null, custom: [], motionPreference: 'full' });
+    const stop = startThemeSync();
+    useThemeStore.getState().select('weiss-akzent');
+    expect(document.documentElement.classList.contains('theme-switching')).toBe(true);
+    await vi.waitFor(() => expect(document.documentElement.classList.contains('theme-switching')).toBe(false));
     stop();
   });
 

@@ -1,6 +1,4 @@
-import { useImperativeHandle, useMemo, useRef, type Ref } from 'react';
-import { deriveColorTokens } from '../../theme/derive';
-import { effectiveTheme, useThemeStore } from '../../theme/themeStore';
+import { useImperativeHandle, useRef, type CSSProperties, type Ref } from 'react';
 import { smoothstep } from './camera';
 import { makeClouds, placeCloud, type Cloud } from './clouds';
 import { CONTINENT_TRANSITION } from './transition';
@@ -11,40 +9,32 @@ export interface CloudLayerHandle {
   update(cover: number, width: number, height: number, timeMs: number): void;
 }
 
-interface CloudColors {
-  body: string;
-  belly: string;
-  shade: string;
+/**
+ * Cloud shapes as alpha masks (SVG with blur), built once. Their color comes from CSS custom
+ * properties on the masked elements, so a theme switch changes only variables and the masks,
+ * rasterized once, are only moved during the transition.
+ */
+function mask(puffs: string, blur: number, dy = 0): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -24 240 176" preserveAspectRatio="none"><filter id="b" x="-30%" y="-50%" width="160%" height="200%"><feGaussianBlur stdDeviation="${blur}"/></filter><g filter="url(#b)" fill="white" transform="translate(0 ${dy})">${puffs}</g></svg>`;
+  return `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}")`;
 }
 
-/**
- * One cloud as a self-contained SVG image: soft puffs (blur + drop shadow) and a darker
- * underside. As an <img> the browser rasterizes the filters once; afterwards the cloud is
- * only moved, which keeps the transition smooth even without a GPU.
- */
-function cloudImage(cloud: Cloud, c: CloudColors): string {
+function cloudMasks(cloud: Cloud) {
   const puffs = (dy: number, scale: number) =>
     cloud.puffs.map((p) => `<circle cx="${p.cx}" cy="${(p.cy + p.r * dy).toFixed(1)}" r="${(p.r * scale).toFixed(1)}"/>`).join('');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -24 240 176" preserveAspectRatio="none">
-<defs>
-<filter id="s" x="-25%" y="-45%" width="150%" height="200%"><feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="soft"/><feDropShadow in="soft" dx="0" dy="10" stdDeviation="11" flood-color="${c.shade}" flood-opacity="0.5"/></filter>
-<filter id="b" x="-25%" y="-45%" width="150%" height="190%"><feGaussianBlur stdDeviation="6"/></filter>
-</defs>
-<g filter="url(#s)" fill="${c.body}">${puffs(0, 1)}</g>
-<g filter="url(#b)" fill="${c.belly}" opacity="0.5" style="mix-blend-mode:multiply">${puffs(0.45, 0.62)}</g>
-</svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  const style = (image: string): CSSProperties => ({ WebkitMaskImage: image, maskImage: image });
+  return {
+    shade: style(mask(puffs(0, 1), 11, 10)),
+    body: style(mask(puffs(0, 1), 3.5)),
+    belly: style(mask(puffs(0.45, 0.62), 6)),
+  };
 }
 
-/** Soft 2D clouds above the map, in the colors of the current theme. */
+const CLOUDS = makeClouds(CONTINENT_TRANSITION.cloudCount);
+const MASKS = CLOUDS.map(cloudMasks);
+
+/** Soft 2D clouds above the map. */
 export function CloudLayer({ ref }: { ref?: Ref<CloudLayerHandle> }) {
-  const clouds = useMemo(() => makeClouds(CONTINENT_TRANSITION.cloudCount), []);
-  const theme = useThemeStore(effectiveTheme);
-  const images = useMemo(() => {
-    const t = deriveColorTokens(theme);
-    const colors = { body: t['--cloud']!, belly: t['--cloud-belly']!, shade: t['--cloud-shade']! };
-    return clouds.map((cloud) => cloudImage(cloud, colors));
-  }, [clouds, theme]);
   const layer = useRef<HTMLDivElement>(null);
   const veil = useRef<HTMLDivElement>(null);
   const nodes = useRef<(HTMLDivElement | null)[]>([]);
@@ -61,7 +51,7 @@ export function CloudLayer({ ref }: { ref?: Ref<CloudLayerHandle> }) {
       veil.current.style.opacity = (smoothstep(0.45, 1, cover) * 0.82).toFixed(3);
       const resize = sized.current !== `${width}x${height}`;
       sized.current = `${width}x${height}`;
-      clouds.forEach((cloud, i) => {
+      CLOUDS.forEach((cloud, i) => {
         const node = nodes.current[i];
         if (!node) return;
         const p = placeCloud(cloud, cover, width, height, timeMs);
@@ -77,7 +67,7 @@ export function CloudLayer({ ref }: { ref?: Ref<CloudLayerHandle> }) {
   return (
     <div ref={layer} className={styles.layer} aria-hidden="true">
       <div ref={veil} className={styles.veil} />
-      {images.map((src, i) => (
+      {MASKS.map((m, i) => (
         <div
           key={i}
           ref={(el) => {
@@ -85,7 +75,9 @@ export function CloudLayer({ ref }: { ref?: Ref<CloudLayerHandle> }) {
           }}
           className={styles.cloud}
         >
-          <img src={src} alt="" draggable={false} />
+          <span className={styles.shade} style={m.shade} />
+          <span className={styles.body} style={m.body} />
+          <span className={styles.belly} style={m.belly} />
         </div>
       ))}
     </div>

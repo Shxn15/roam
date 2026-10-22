@@ -1,6 +1,6 @@
 import { isHexColor, normalizeHex } from './color';
 import { FONT_IDS, type FontId } from './tokens';
-import { COLOR_ROLES, type ThemeColors, type ThemeRecord } from './types';
+import { COLOR_ROLES, MAP_COLOR_ROLES, type MapColors, type ThemeColors, type ThemeRecord } from './types';
 
 export class ThemeValidationError extends Error {}
 
@@ -24,7 +24,7 @@ export function parseTheme(input: unknown): ThemeRecord {
   if (!isRecord(input)) fail('Theme muss ein Objekt sein');
   if (input.schemaVersion !== 1) fail(`Nicht unterstützte Theme-Version: ${String(input.schemaVersion)}`);
 
-  const { id, name, basedOn, colors, tints, fonts, radius } = input;
+  const { id, name, basedOn, colors, tints, fonts, radius, map } = input;
   if (typeof id !== 'string' || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(id)) fail(`Ungültige Theme-ID: ${String(id)}`);
   if (typeof name !== 'string' || name.trim().length === 0 || name.length > 60) fail('Theme-Name fehlt oder ist zu lang');
   if (basedOn !== null && typeof basedOn !== 'string') fail('„basedOn“ muss eine Preset-ID oder null sein');
@@ -46,6 +46,17 @@ export function parseTheme(input: unknown): ThemeRecord {
     fail('„radius“ muss zwischen 0 und 32 liegen');
   }
 
+  let parsedMap: MapColors | undefined;
+  if (map !== undefined) {
+    if (!isRecord(map)) fail('„map“ muss ein Objekt sein');
+    parsedMap = {} as MapColors;
+    for (const role of MAP_COLOR_ROLES) {
+      const value = map[role];
+      if (!isHexColor(value)) fail(`Kartenfarbe „${role}“ ist keine Hex-Farbe: ${String(value)}`);
+      parsedMap[role] = normalizeHex(value);
+    }
+  }
+
   return {
     schemaVersion: 1,
     id,
@@ -55,5 +66,6 @@ export function parseTheme(input: unknown): ThemeRecord {
     tints: tints.map((t: string) => normalizeHex(t)) as ThemeRecord['tints'],
     fonts: { display: parseFont(fonts.display, 'display'), body: parseFont(fonts.body, 'body') },
     radius,
+    ...(parsedMap ? { map: parsedMap } : {}),
   };
 }

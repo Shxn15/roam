@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { WORLD_BOX, continentBox } from '../../geo/atlas';
 import { fitBox, interpolateCamera, mapToScreen, screenToMap, viewCenter, zoomAround, type Viewport } from './camera';
 import { makeClouds, placeCloud } from './clouds';
-import { MapController } from './controller';
+import { LOD_FINE_FROM_K, MapController, lodFor } from './controller';
+import { FOLLOW, approach } from './follow';
 import { headingAt, makeRoute, pointAt } from './route';
 import { CONTINENT_TRANSITION as T, createTransition, sampleTransition } from './transition';
 
@@ -111,9 +112,16 @@ describe('transition timeline', () => {
     expect(late.planeOpacity).toBeGreaterThan(0.3);
   });
 
-  it('reveals the countries only in phase 3', () => {
-    expect(sampleTransition(tr, 1199).revealed).toBe(false);
-    expect(sampleTransition(tr, 1200).revealed).toBe(true);
+  it('reveals the countries once the zoom is over, while the clouds still clear', () => {
+    expect(sampleTransition(tr, T.zoom[1] - 1).revealed).toBe(false);
+    expect(sampleTransition(tr, T.zoom[1]).revealed).toBe(true);
+    expect(sampleTransition(tr, T.zoom[1]).cover).toBeGreaterThan(0);
+  });
+
+  it('marks the moment the map is covered, to switch the emphasized continent unseen', () => {
+    expect(sampleTransition(tr, 300).covered).toBe(false);
+    expect(sampleTransition(tr, T.cloudsIn[1]).covered).toBe(true);
+    expect(sampleTransition(tr, T.cloudsIn[1]).cover).toBe(1);
   });
 
   it('just fades with reduced motion', () => {
@@ -126,25 +134,82 @@ describe('transition timeline', () => {
   });
 });
 
+describe('damped following', () => {
+  const target = { x: -820, y: -210, k: 3.4 };
+
+  it('ends exactly on the target', () => {
+    let cam = { x: 120, y: 40, k: 1.1 };
+    let done = false;
+    let frames = 0;
+    while (!done && frames < 400) {
+      ({ camera: cam, done } = approach(cam, target, [700, 400], 16.7, FOLLOW.zoomTau));
+      frames++;
+    }
+    expect(done).toBe(true);
+    expect(cam).toEqual(target);
+    expect(frames).toBeLessThan(60); // about a second at 60 Hz, mostly a soft tail
+  });
+
+  it('keeps the point under the cursor in place while zooming', () => {
+    const start = { x: 100, y: 50, k: 1.2 };
+    const anchor: [number, number] = [640, 380];
+    const goal = zoomAround(start, 3, anchor, { min: 0.1, max: 100 });
+    const under = screenToMap(start, anchor);
+    let cam = start;
+    for (let i = 0; i < 5; i++) {
+      cam = approach(cam, goal, anchor, 16, FOLLOW.zoomTau).camera;
+      const now = screenToMap(cam, anchor);
+      expect(now[0]).toBeCloseTo(under[0], 9);
+      expect(now[1]).toBeCloseTo(under[1], 9);
+    }
+  });
+
+  it('does not depend on the frame rate', () => {
+    const start = { x: 0, y: 0, k: 1 };
+    const at60 = approach(start, target, [500, 300], 16, FOLLOW.zoomTau).camera;
+    const at120 = approach(approach(start, target, [500, 300], 8, FOLLOW.zoomTau).camera, target, [500, 300], 8, FOLLOW.zoomTau).camera;
+    expect(at120.k).toBeCloseTo(at60.k, 9);
+    expect(at120.x).toBeCloseTo(at60.x, 6);
+  });
+
+  it('switches to detailed outlines only when zoomed in', () => {
+    expect(lodFor(1.05)).toBe('coarse');
+    expect(lodFor(LOD_FINE_FROM_K)).toBe('fine');
+  });
+});
+
 describe('map controller', () => {
   const make = (motion: 'full' | 'reduced' = 'full') => {
     const log: string[] = [];
     const ctrl = new MapController(viewport, () => motion, {
       onSelect: (c) => log.push(`select:${c}`),
       onReveal: (c) => c && log.push(`reveal:${c}`),
+      onMapSelection: (c) => log.push(`map:${c}`),
+      onRest: () => log.push('rest'),
     });
     return { ctrl, log };
   };
+  /** Runs the loop like requestAnimationFrame would, until nothing moves. */
+  const settle = (ctrl: MapController, from: number, step = 16) => {
+    let t = from;
+    while (ctrl.animating && t < from + 10_000) ctrl.tick((t += step));
+    return t;
+  };
 
-  it('ends on the chosen continent', () => {
+  it('ends on the chosen continent, telling the panels only at the right moments', () => {
     const { ctrl, log } = make();
     ctrl.select('europe', 0);
     expect(ctrl.selected).toBe('europe');
-    for (let t = 0; t <= T.durationMs; t += 16) ctrl.tick(t);
-    ctrl.tick(T.durationMs);
+    ctrl.tick(300);
+    expect(log).toEqual(['select:europe']); // map still unchanged while the clouds come
+    ctrl.tick(T.cloudsIn[1]);
+    expect(log).toEqual(['select:europe', 'map:europe']); // switched under full cover
+    ctrl.tick(T.zoom[1] - 1);
+    expect(log).toHaveLength(2); // no panel update during the zoom
+    settle(ctrl, T.zoom[1] - 1);
     expect(ctrl.transition).toBeNull();
-    close(ctrl.camera, fitBox(continentBox('europe'), viewport));
-    expect(log).toEqual(['select:europe', 'reveal:europe']);
+    expect(ctrl.camera).toEqual(fitBox(continentBox('europe'), viewport));
+    expect(log).toEqual(['select:europe', 'map:europe', 'reveal:europe', 'rest']);
   });
 
   it('accepts a new choice mid-flight and ends on the new continent', () => {
@@ -156,11 +221,9 @@ describe('map controller', () => {
     expect(ctrl.selected).toBe('asia');
     close(ctrl.frameAt(600).camera, midway); // no jump: starts where we were
     expect(ctrl.frameAt(600).cover).toBe(1); // clouds stay closed
-    for (let t = 600; t <= 600 + T.durationMs; t += 16) ctrl.tick(t);
-    ctrl.tick(600 + T.durationMs);
-    expect(ctrl.transition).toBeNull();
-    close(ctrl.camera, fitBox(continentBox('asia'), viewport));
-    expect(log).toEqual(['select:europe', 'select:asia', 'reveal:asia']);
+    settle(ctrl, 600);
+    expect(ctrl.camera).toEqual(fitBox(continentBox('asia'), viewport));
+    expect(log).toEqual(['select:europe', 'map:europe', 'select:asia', 'map:asia', 'reveal:asia', 'rest']);
   });
 
   it('can be interrupted while the clouds are clearing', () => {
@@ -170,18 +233,32 @@ describe('map controller', () => {
     const cover = ctrl.frameAt(1500).cover;
     ctrl.select('oceania', 1500);
     expect(ctrl.frameAt(1500).cover).toBeCloseTo(cover, 9);
-    ctrl.tick(1500 + T.durationMs);
-    close(ctrl.camera, fitBox(continentBox('oceania'), viewport));
+    settle(ctrl, 1500);
+    expect(ctrl.camera).toEqual(fitBox(continentBox('oceania'), viewport));
   });
 
   it('goes back to the world on clear', () => {
     const { ctrl } = make();
     ctrl.select('south-america', 0);
-    ctrl.tick(T.durationMs);
+    settle(ctrl, 0);
     ctrl.clear(2000);
     expect(ctrl.selected).toBeNull();
-    ctrl.tick(2000 + T.glideMs);
-    close(ctrl.camera, fitBox(WORLD_BOX, viewport));
+    settle(ctrl, 2000);
+    expect(ctrl.camera).toEqual(fitBox(WORLD_BOX, viewport));
+  });
+
+  it('zooms to a country with the same loop and ends exactly there', () => {
+    const { ctrl, log } = make();
+    const box = [520, 110, 540, 125] as const;
+    ctrl.focusBox(box, viewport.insets, 0);
+    expect(ctrl.transition?.kind).toBe('glide');
+    const target = ctrl.target;
+    ctrl.tick(T.glideMs / 4);
+    const quarter = ctrl.camera;
+    expect(Math.log(quarter.k / fitBox(WORLD_BOX, viewport).k) / Math.log(target.k / fitBox(WORLD_BOX, viewport).k)).toBeLessThan(0.25); // eased start
+    settle(ctrl, T.glideMs / 4);
+    expect(ctrl.camera).toEqual(target);
+    expect(log.filter((l) => l === 'rest')).toHaveLength(1);
   });
 
   it('only fades with reduced motion', () => {
@@ -189,19 +266,48 @@ describe('map controller', () => {
     ctrl.select('asia', 0);
     expect(ctrl.transition?.kind).toBe('fade');
     expect(ctrl.frameAt(100).cover).toBe(0);
-    ctrl.tick(T.fadeMs);
-    close(ctrl.camera, fitBox(continentBox('asia'), viewport));
+    settle(ctrl, 0);
+    expect(ctrl.camera).toEqual(fitBox(continentBox('asia'), viewport));
   });
 
-  it('finishes a transition before manual zoom and pan', () => {
+  it('glides wheel zoom to the target and ends exactly on it', () => {
+    const { ctrl, log } = make();
+    const start = ctrl.camera;
+    ctrl.zoomBy(1.15, 0, { anchor: [900, 420] });
+    ctrl.zoomBy(1.15, 5, { anchor: [900, 420] }); // two notches in quick succession add up
+    const target = ctrl.target;
+    expect(target.k).toBeCloseTo(start.k * 1.15 * 1.15, 9);
+    expect(ctrl.camera).toEqual(start); // nothing jumps before the next frame
+    ctrl.tick(16);
+    expect(ctrl.camera.k).toBeGreaterThan(start.k);
+    expect(ctrl.camera.k).toBeLessThan(target.k);
+    settle(ctrl, 16);
+    expect(ctrl.camera).toEqual(target);
+    expect(log).toEqual(['rest']);
+  });
+
+  it('finishes a continent flight before manual zoom, and stops a glide where it is', () => {
     const { ctrl } = make();
     ctrl.select('europe', 0);
     ctrl.zoomBy(2, 100);
     expect(ctrl.transition).toBeNull();
-    expect(ctrl.camera.k).toBeCloseTo(fitBox(continentBox('europe'), viewport).k * 2, 6);
-    const before = ctrl.camera;
-    ctrl.panBy(40, -20);
-    expect(ctrl.camera.x).toBeCloseTo(before.x + 40, 6);
-    expect(ctrl.camera.y).toBeCloseTo(before.y - 20, 6);
+    const europe = fitBox(continentBox('europe'), viewport);
+    expect(ctrl.target.k).toBeCloseTo(europe.k * 2, 6);
+    settle(ctrl, 100);
+    ctrl.clear(5000);
+    ctrl.tick(5000 + T.glideMs / 2);
+    const midway = ctrl.camera;
+    ctrl.panBy(40, -20, 5000 + T.glideMs / 2);
+    expect(ctrl.transition).toBeNull();
+    expect(ctrl.target.x).toBeCloseTo(midway.x + 40, 6);
+    expect(ctrl.target.y).toBeCloseTo(midway.y - 20, 6);
+  });
+
+  it('lets a released drag glide out, limited in distance', () => {
+    const { ctrl } = make();
+    const start = ctrl.camera;
+    ctrl.fling(10, 0, 0); // a very fast flick
+    expect(ctrl.target.x - start.x).toBeLessThanOrEqual(600 + 1e-9);
+    expect(ctrl.target.x).toBeGreaterThan(start.x);
   });
 });

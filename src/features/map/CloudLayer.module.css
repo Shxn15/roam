@@ -20,12 +20,33 @@
   will-change: transform;
 }
 
-/* The image's viewBox has room for the shadow around the 200×120 cloud box. */
-.cloud img {
+/* The mask's viewBox has room for blur and shadow around the 200×120 cloud box. */
+.shade,
+.body,
+.belly {
   position: absolute;
   left: -10%;
   top: -20%;
   width: 120%;
   height: 146.667%;
-  user-select: none;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+.shade {
+  background: var(--cloud-shade);
+  opacity: 0.5;
+}
+
+.body {
+  background: var(--cloud);
+}
+
+/* A soft, slightly darker underside gives the cloud volume. */
+.belly {
+  background: var(--cloud-belly);
+  opacity: 0.5;
+  mix-blend-mode: multiply;
 }

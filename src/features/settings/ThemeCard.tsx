@@ -1,5 +1,5 @@
 import { Check, Trash2 } from 'lucide-react';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { scopedThemeStyle } from '../../theme/scoped';
 import { appearanceOf } from '../../theme/derive';
 import type { ThemeRecord } from '../../theme/types';
@@ -11,16 +11,19 @@ import styles from './ThemeCard.module.css';
 interface ThemeCardProps {
   theme: ThemeRecord;
   selected: boolean;
-  onSelect(): void;
-  onDelete?(): void;
+  onSelect(id: string): void;
+  onDelete?(theme: ThemeRecord): void;
 }
 
-/** A miniature of the floating layout, rendered in the card's own theme. */
-export function ThemeCard({ theme, selected, onSelect, onDelete }: ThemeCardProps) {
+/**
+ * A miniature of the floating layout, rendered in the card's own theme. Memoized: a theme
+ * switch re-renders only the two cards whose selection changed.
+ */
+export const ThemeCard = memo(function ThemeCard({ theme, selected, onSelect, onDelete }: ThemeCardProps) {
   const style = useMemo(() => scopedThemeStyle(theme), [theme]);
   return (
     <div className={cx(styles.card, selected && styles.selected)}>
-      <button type="button" className={styles.select} aria-pressed={selected} onClick={onSelect}>
+      <button type="button" className={styles.select} aria-pressed={selected} onClick={() => onSelect(theme.id)}>
         <span className={styles.scene} style={style} data-appearance={appearanceOf(theme)}>
           <MiniWorld width={160} height={96} className={styles.world} />
           <span className={styles.pin} />
@@ -48,9 +51,9 @@ export function ThemeCard({ theme, selected, onSelect, onDelete }: ThemeCardProp
           label={`„${theme.name}“ löschen`}
           icon={<Trash2 size={14} />}
           className={styles.delete}
-          onClick={onDelete}
+          onClick={() => onDelete(theme)}
         />
       )}
     </div>
   );
-}
+});
