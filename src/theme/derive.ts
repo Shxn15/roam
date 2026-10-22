@@ -10,7 +10,7 @@ export function appearanceOf(theme: ThemeRecord): Appearance {
 }
 
 /** Prefers the theme's own colors for text on `bg`; falls back to paper/ink only if none is readable. */
-function readableOn(bg: string, preferred: string[]): string {
+export function readableOn(bg: string, preferred: string[]): string {
   const best = mostReadable(bg, preferred);
   if (contrastRatio(best, bg) >= 4.5) return best;
   return mostReadable(bg, [...preferred, PAPER_ANCHOR, INK_ANCHOR]);

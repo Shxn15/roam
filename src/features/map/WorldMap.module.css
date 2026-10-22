@@ -137,6 +137,20 @@
   filter: drop-shadow(0 2px 2px var(--cloud-shade));
 }
 
+/* The ring that pops up where a country flight lands, in the country's accent. */
+.pop {
+  opacity: 0;
+}
+
+.popRing {
+  fill: none;
+  stroke: var(--country-accent);
+}
+
+.popGlow {
+  fill: var(--country-accent);
+}
+
 .tooltip {
   position: absolute;
   left: 0;

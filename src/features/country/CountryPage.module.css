@@ -3,136 +3,45 @@
   top: var(--panel-gap);
   left: var(--panel-gap);
   bottom: var(--panel-gap);
-  width: 420px;
+  /* Progress bars inside the country tab take the country's accent. */
+  --progress-color: var(--country-accent);
 }
 
 .panel {
   pointer-events: auto;
-  max-height: 100%;
-  overflow-y: auto;
-  display: grid;
-  align-content: start;
-  gap: var(--space-5);
-  padding: var(--space-5) var(--space-6) var(--space-6);
-}
-
-.back {
-  justify-self: start;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: 32px;
-  padding: 0 var(--space-3) 0 var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--surface);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-
-.back:hover {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-lg);
   color: var(--text);
-  background: var(--surface-hover);
 }
 
-.header {
-  display: grid;
-  gap: var(--space-1);
-}
-
-.kicker {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--accent-text);
-  font-size: var(--text-sm);
-  font-weight: 700;
-}
-
-.iso {
-  padding: 0 6px;
-  border-radius: var(--radius-xs);
-  background: var(--surface-sunken);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}
-
-.title {
-  font-size: var(--text-3xl);
-}
-
-.section {
+.missing {
+  pointer-events: auto;
   display: grid;
   gap: var(--space-3);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border);
+  justify-items: start;
 }
 
-.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-.sectionTitle {
-  font-size: var(--text-lg);
-}
-
-.hint {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-
-.year {
-  display: flex;
-  align-items: center;
+.empty {
+  margin: auto;
+  max-width: 460px;
+  display: grid;
+  justify-items: center;
   gap: var(--space-3);
-  font-size: var(--text-md);
+  padding: var(--space-7) var(--space-6);
+  text-align: center;
+}
+
+.emptyTitle {
+  font-size: var(--text-xl);
+}
+
+.emptyText {
   color: var(--text-muted);
-}
-
-.year input {
-  width: 84px;
-  height: 32px;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-sunken);
-  font-variant-numeric: tabular-nums;
-}
-
-.year svg {
-  color: var(--success);
-}
-
-.trips {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--space-2);
-}
-
-.trip {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: var(--space-1) var(--space-3);
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-
-.tripTitle {
-  font-weight: 650;
-}
-
-.tripDays {
-  grid-column: 1 / -1;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
+  margin-bottom: var(--space-2);
 }

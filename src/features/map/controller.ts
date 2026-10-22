@@ -14,7 +14,7 @@ import {
 } from './camera';
 import { FOLLOW, approach } from './follow';
 import { makeRoute } from './route';
-import { createTransition, sampleTransition, type Transition, type TransitionFrame } from './transition';
+import { COUNTRY_TRANSITION, createTransition, sampleTransition, type Transition, type TransitionFrame } from './transition';
 
 export interface MapEvents {
   /** The chosen continent (immediately, for the panels' selection state). */
@@ -25,6 +25,19 @@ export interface MapEvents {
   onMapSelection?(continent: ContinentId | null): void;
   /** Nothing moves any more: the moment for work that would stutter during motion (detail level). */
   onRest?(camera: Camera): void;
+  /** A country flight landed (or was skipped to its end): the country page may open. */
+  onArrive?(countryId: string): void;
+  /** A country flight was replaced by another move before it landed. */
+  onFlightCancel?(countryId: string): void;
+}
+
+/** What a country flight needs to know about its destination. */
+export interface FlightTarget {
+  id: string;
+  /** Bounds of the country's main part. */
+  box: Box;
+  /** Where the plane lands and the ring pops up. */
+  at: Point;
 }
 
 /** What drives the camera: an eased, timed move (tween) or damped following of a target. */
@@ -39,6 +52,7 @@ const stillFrame = (camera: Camera): TransitionFrame => ({
   planeOpacity: 0,
   trailOpacity: 0,
   mapOpacity: 1,
+  pop: null,
   covered: true,
   revealed: true,
   done: true,
@@ -61,6 +75,8 @@ export class MapController {
   private manual = false;
   /** Where the camera rests when nothing else is going on (a focused country, say). */
   private focus: { box: Box; insets?: Viewport['insets'] } | null = null;
+  /** The country a running country flight lands in. */
+  private flyingTo: string | null = null;
 
   constructor(
     viewport: Viewport,
@@ -78,6 +94,11 @@ export class MapController {
 
   get animating(): boolean {
     return this.motion !== null;
+  }
+
+  /** The destination of the country flight in progress, if any. */
+  get flight(): string | null {
+    return this.flyingTo;
   }
 
   /** Where the camera is heading (the end of a tween or the follow target). */
@@ -120,6 +141,7 @@ export class MapController {
   select(continent: ContinentId, now: number): void {
     if (continent === this.selected && !this.motion && !this.manual && !this.focus) return;
     const current = this.frameAt(now);
+    this.cancelFlight();
     this.selected = continent;
     this.revealed = null;
     this.focus = null;
@@ -145,10 +167,43 @@ export class MapController {
     };
   }
 
+  /**
+   * Flies from where the camera is (the chosen continent) to a country with the continent
+   * flight's layers: plane, clouds, zoom under them, then a ring pops up and `onArrive` fires.
+   * The camera ends framing the country beside the country page (`insets`). With reduced
+   * motion the map only fades out and in.
+   */
+  flyToCountry(target: FlightTarget, insets: Viewport['insets'] | undefined, now: number): void {
+    const current = this.frameAt(now);
+    this.cancelFlight();
+    this.focus = { box: padBox(target.box, 14), insets };
+    this.manual = false;
+    this.flyingTo = target.id;
+    const reduced = this.motionLevel() === 'reduced';
+    const from = current.camera;
+    this.camera = from;
+    this.motion = {
+      kind: 'tween',
+      tr: createTransition({
+        kind: reduced ? 'fade' : 'clouds',
+        timing: COUNTRY_TRANSITION,
+        now,
+        from,
+        to: this.restingCamera(),
+        viewport: this.viewport,
+        startCover: current.cover,
+        route: reduced ? null : makeRoute(screenToMap(from, viewCenter(this.viewport)), target.at),
+        popAt: target.at,
+        arrival: target.id,
+      }),
+    };
+  }
+
   /** Back to the whole world (Escape). */
   clear(now: number): void {
     if (!this.selected && !this.focus && !this.manual && !this.motion) return;
     const current = this.frameAt(now);
+    this.cancelFlight();
     this.selected = null;
     this.revealed = null;
     this.focus = null;
@@ -158,10 +213,16 @@ export class MapController {
     this.tweenTo(this.restingCamera(), now, current);
   }
 
-  /** Zooms to a country (its main part) beside a panel: the same loop, with an ease curve. */
+  /**
+   * Zooms to a country (its main part) beside a panel: the same loop, with an ease curve.
+   * Nothing happens if a country flight already brought the camera there.
+   */
   focusBox(box: Box, insets: Viewport['insets'] | undefined, now: number): void {
+    const focus = { box: padBox(box, 14), insets };
+    if (!this.manual && this.focus && sameFocus(this.focus, focus) && (!this.motion || this.flyingTo)) return;
     const current = this.frameAt(now);
-    this.focus = { box: padBox(box, 14), insets };
+    this.cancelFlight();
+    this.focus = focus;
     this.manual = false;
     this.tweenTo(this.restingCamera(), now, current);
   }
@@ -169,6 +230,7 @@ export class MapController {
   releaseFocus(now: number): void {
     if (!this.focus) return;
     const current = this.frameAt(now);
+    this.cancelFlight();
     this.focus = null;
     this.tweenTo(this.restingCamera(), now, current);
   }
@@ -218,11 +280,20 @@ export class MapController {
       this.revealed = this.selected;
       this.events.onReveal?.(this.selected);
     }
-    if (frame.done) this.settle();
+    if (frame.done) {
+      this.settle();
+      if (motion.tr.arrival && this.flyingTo === motion.tr.arrival) {
+        this.flyingTo = null;
+        this.events.onArrive?.(motion.tr.arrival);
+      }
+    }
     return frame;
   }
 
-  /** Jumps to the end of a running tween (used before manual input during a continent flight). */
+  /**
+   * Jumps to the end of a running tween: before manual input during a flight, and for a
+   * second click during a country flight, which lands at once.
+   */
   finish(): void {
     if (this.motion?.kind !== 'tween') return;
     const tr = this.motion.tr;
@@ -232,6 +303,14 @@ export class MapController {
   private settle(): void {
     this.motion = null;
     this.events.onRest?.(this.camera);
+  }
+
+  /** A new move replaces a country flight that has not landed yet. */
+  private cancelFlight(): void {
+    if (!this.flyingTo) return;
+    const id = this.flyingTo;
+    this.flyingTo = null;
+    this.events.onFlightCancel?.(id);
   }
 
   /** Starts or extends damped following. Manual input interrupts programmatic moves. */
@@ -272,6 +351,13 @@ export class MapController {
   private clamp(c: Camera): Camera {
     return clampCamera(c, this.viewport, WORLD_BOX, this.limits);
   }
+}
+
+const sameInsets = (a: Viewport['insets'] | undefined, b: Viewport['insets'] | undefined) =>
+  a === b || (!!a && !!b && a.top === b.top && a.right === b.right && a.bottom === b.bottom && a.left === b.left);
+
+function sameFocus(a: { box: Box; insets?: Viewport['insets'] }, b: { box: Box; insets?: Viewport['insets'] }): boolean {
+  return a.box.every((v, i) => v === b.box[i]) && sameInsets(a.insets, b.insets);
 }
 
 /** Gives tiny countries some room around them, so Luxembourg is not framed edge to edge. */

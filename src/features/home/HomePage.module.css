@@ -23,3 +23,17 @@
 .column > * {
   pointer-events: auto;
 }
+
+/* A country flight is under way: the panels fade out and let clicks through to the map
+   (a click there lands the plane at once). */
+.home {
+  transition: opacity var(--dur-slow) var(--ease-soft);
+}
+
+.home[data-leaving] {
+  opacity: 0;
+}
+
+.home[data-leaving] * {
+  pointer-events: none !important;
+}

@@ -1,25 +1,33 @@
 import { Search, X } from 'lucide-react';
-import { useId, useMemo, useState, type KeyboardEvent } from 'react';
-import { useNavigate } from 'react-router';
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useUi } from '../../app/uiStore';
 import { Logo } from '../../brand/Logo';
 import { useTravelStore } from '../../data/travelStore';
 import { searchCountries } from '../../domain/countries';
 import { continentName } from '../../geo/continents';
 import { Panel } from '../../ui/Panel';
 import { cx } from '../../ui/cx';
+import { useOpenCountry } from '../country/useOpenCountry';
 import styles from './SearchPanel.module.css';
 
 export function SearchPanel() {
   const countries = useTravelStore((s) => s.countries);
-  const navigate = useNavigate();
+  const openCountry = useOpenCountry();
+  const newTrip = useUi((s) => s.newTripIntent);
+  const input = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const listId = useId();
   const results = useMemo(() => searchCountries(countries, query, 7), [countries, query]);
 
+  // "Neue Reise" on the home screen starts here: first the country.
+  useEffect(() => {
+    if (newTrip) input.current?.focus();
+  }, [newTrip]);
+
   const open = (id: string) => {
     setQuery('');
-    navigate(`/land/${id}`);
+    openCountry(id);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -31,9 +39,10 @@ export function SearchPanel() {
       setActive((i) => Math.max(0, i - 1));
     } else if (e.key === 'Enter' && results[active]) {
       open(results[active].id);
-    } else if (e.key === 'Escape' && query) {
+    } else if (e.key === 'Escape' && (query || newTrip)) {
       e.preventDefault(); // keep the map's Escape for the continent
       setQuery('');
+      useUi.getState().setNewTripIntent(false);
     }
   };
 
@@ -45,9 +54,10 @@ export function SearchPanel() {
       <div className={styles.field}>
         <Search size={16} aria-hidden className={styles.icon} />
         <input
+          ref={input}
           type="text"
           value={query}
-          placeholder="Land suchen"
+          placeholder={newTrip ? 'Wohin geht die neue Reise?' : 'Land suchen'}
           aria-label="Land suchen"
           role="combobox"
           aria-expanded={results.length > 0}
@@ -75,6 +85,7 @@ export function SearchPanel() {
               role="option"
               aria-selected={i === active}
               className={cx(styles.result, i === active && styles.activeResult)}
+              data-opens-country=""
               onMouseEnter={() => setActive(i)}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => open(c.id)}

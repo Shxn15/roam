@@ -1,3 +1,4 @@
+import { countryThemeRules } from './countryTheme';
 import { appearanceOf, themeToCssVars } from './derive';
 import { parseTheme } from './schema';
 import type { MotionLevel } from './tokens';
@@ -7,12 +8,13 @@ const CACHE_KEY = 'roam.theme-cache';
 const STYLE_ID = 'roam-theme';
 const SWITCHING = 'theme-switching';
 
-/** All tokens of a theme as one `:root` rule. */
+/** All tokens of a theme as one `:root` rule, followed by the country themes derived from it. */
 export function themeStylesheet(theme: ThemeRecord, motion: MotionLevel): string {
   const vars = themeToCssVars(theme, motion);
-  return `:root{${Object.entries(vars)
+  const root = `:root{${Object.entries(vars)
     .map(([name, value]) => `${name}:${value}`)
     .join(';')}}`;
+  return root + countryThemeRules(theme);
 }
 
 let release = 0;

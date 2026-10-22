@@ -311,3 +311,96 @@ describe('map controller', () => {
     expect(ctrl.target.x).toBeGreaterThan(start.x);
   });
 });
+
+describe('flight to a country', () => {
+  const japan = { id: 'JPN', box: [870, 150, 905, 205] as const, at: [890, 182] as const };
+  const insets = { top: 64, right: 32, bottom: 48, left: 1060 };
+  const make = (motion: 'full' | 'reduced' = 'full') => {
+    const log: string[] = [];
+    const ctrl = new MapController(viewport, () => motion, {
+      onArrive: (id) => log.push(`arrive:${id}`),
+      onFlightCancel: (id) => log.push(`cancel:${id}`),
+      onRest: () => log.push('rest'),
+    });
+    ctrl.select('asia', 0);
+    while (ctrl.animating) ctrl.tick(10_000);
+    log.length = 0;
+    return { ctrl, log };
+  };
+  const run = (ctrl: MapController, from: number) => {
+    let t = from;
+    while (ctrl.animating && t < from + 10_000) ctrl.tick((t += 16));
+    return t;
+  };
+
+  it('takes about 2 s: plane, clouds, zoom under them, then a ring at the country', () => {
+    const { ctrl, log } = make();
+    const start = ctrl.camera;
+    ctrl.flyToCountry(japan, insets, 1000);
+    expect(ctrl.flight).toBe('JPN');
+    const tr = ctrl.transition!;
+    expect(tr.kind).toBe('clouds');
+    expect(tr.duration).toBeGreaterThanOrEqual(1800);
+    expect(tr.duration).toBeLessThanOrEqual(2200);
+    expect(tr.route?.to).toEqual(japan.at); // from the continent to the country
+    expect(sampleTransition(tr, 1000 + 200).planeOpacity).toBeGreaterThan(0.5);
+    expect(sampleTransition(tr, 1000 + 800).cover).toBe(1); // the switch happens under the clouds
+    close(sampleTransition(tr, 1000 + 300).camera, start);
+    expect(sampleTransition(tr, 1000 + 1200).pop).toBeNull(); // no ring before landing
+    const ring = sampleTransition(tr, 1000 + 1700);
+    expect(ring.pop).toBeGreaterThan(0);
+    expect(ring.pop).toBeLessThan(1);
+    expect(ring.cover).toBe(0);
+    run(ctrl, 1000);
+    expect(log).toEqual(['rest', 'arrive:JPN']);
+    expect(ctrl.flight).toBeNull();
+    expect(ctrl.camera).toEqual(ctrl.restingCamera()); // framing the country beside the page
+  });
+
+  it('ends exactly where the country page frames the country, so the page adds no second zoom', () => {
+    const { ctrl, log } = make();
+    ctrl.flyToCountry(japan, insets, 0);
+    const target = ctrl.target;
+    run(ctrl, 0);
+    expect(ctrl.camera).toEqual(target);
+    ctrl.focusBox(japan.box, { ...insets }, 5000); // what the country page asks for once it opens
+    expect(ctrl.animating).toBe(false);
+    expect(log.filter((l) => l === 'rest')).toHaveLength(1);
+  });
+
+  it('lands at once on a second click', () => {
+    const { ctrl, log } = make();
+    ctrl.flyToCountry(japan, insets, 0);
+    ctrl.tick(400);
+    const target = ctrl.target;
+    ctrl.finish();
+    expect(log).toEqual(['rest', 'arrive:JPN']);
+    expect(ctrl.camera).toEqual(target);
+    expect(ctrl.frameAt(500).cover).toBe(0);
+  });
+
+  it('does not land when another choice replaces it', () => {
+    const { ctrl, log } = make();
+    ctrl.flyToCountry(japan, insets, 0);
+    ctrl.tick(600);
+    ctrl.select('europe', 600);
+    run(ctrl, 600);
+    expect(log).toContain('cancel:JPN');
+    expect(log).not.toContain('arrive:JPN');
+    expect(ctrl.camera).toEqual(fitBox(continentBox('europe'), viewport));
+  });
+
+  it('only fades out and in with reduced motion', () => {
+    const { ctrl, log } = make('reduced');
+    ctrl.flyToCountry(japan, insets, 0);
+    expect(ctrl.transition?.kind).toBe('fade');
+    expect(ctrl.transition?.duration).toBeLessThanOrEqual(400);
+    const mid = ctrl.frameAt(100);
+    expect(mid.cover).toBe(0);
+    expect(mid.planeOpacity).toBe(0);
+    expect(mid.pop).toBeNull();
+    expect(mid.mapOpacity).toBeLessThan(1);
+    run(ctrl, 0);
+    expect(log).toEqual(['rest', 'arrive:JPN']);
+  });
+});

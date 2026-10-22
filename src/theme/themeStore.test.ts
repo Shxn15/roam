@@ -6,12 +6,11 @@ import { createTestDb } from '../db/testing';
 import { findPreset } from './presets';
 import { startThemeSync, useThemeStore } from './themeStore';
 
-/** The custom properties currently set by the theme stylesheet. */
+/** The custom properties currently set by the theme stylesheet's :root rule. */
 function themeVars(): Map<string, string> {
   const text = document.getElementById('roam-theme')?.textContent ?? '';
   return new Map(
-    text
-      .replace(/^:root\{|\}$/g, '')
+    (/^:root\{([^}]*)\}/.exec(text)?.[1] ?? '')
       .split(';')
       .map((decl) => [decl.slice(0, decl.indexOf(':')), decl.slice(decl.indexOf(':') + 1)] as [string, string]),
   );

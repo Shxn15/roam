@@ -1,23 +1,26 @@
 import { Check, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, type CSSProperties } from 'react';
-import { useNavigate } from 'react-router';
 import { useTravelStore } from '../../data/travelStore';
 import { countriesByContinent } from '../../domain/countries';
 import { continentName } from '../../geo/continents';
 import { EASE_SOFT, useDurations } from '../../motion/useMotion';
 import { IconButton } from '../../ui/IconButton';
 import { cx } from '../../ui/cx';
+import { useOpenCountry } from '../country/useOpenCountry';
 import { mapActions, useMapStore } from '../map/mapStore';
 import styles from './CountryChips.module.css';
 
-/** The countries of the chosen continent. Appears once the clouds clear (phase 3). */
+/**
+ * The countries of the chosen continent. Appears once the clouds clear (phase 3). A chip
+ * sends the plane to its country; the country page opens when it lands.
+ */
 export function CountryChips() {
   const revealed = useMapStore((s) => s.revealed);
   const selected = useMapStore((s) => s.selected);
   const countries = useTravelStore((s) => s.countries);
   const groups = useMemo(() => countriesByContinent(countries), [countries]);
-  const navigate = useNavigate();
+  const openCountry = useOpenCountry();
   const d = useDurations();
   const continent = revealed && revealed === selected ? revealed : null;
   const list = continent ? groups[continent] : [];
@@ -51,7 +54,8 @@ export function CountryChips() {
                 type="button"
                 className={cx(styles.chip, c.visited && styles.visited)}
                 style={{ '--i': Math.min(i, 30) } as CSSProperties}
-                onClick={() => navigate(`/land/${c.id}`)}
+                data-opens-country=""
+                onClick={() => openCountry(c.id)}
               >
                 {c.visited && <Check size={13} strokeWidth={2.6} aria-label="besucht" />}
                 {c.name}

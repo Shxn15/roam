@@ -1,0 +1,115 @@
+.header {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding: var(--space-4) var(--space-6) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.header > :not(svg) {
+  position: relative;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.back,
+.visit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 30px;
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.back:hover,
+.visit:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.visit[data-visited] {
+  border-color: var(--country-accent);
+  background: var(--country-accent-soft);
+  color: var(--country-accent-text);
+}
+
+.kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--country-accent-text);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.title {
+  font-size: var(--text-3xl);
+}
+
+.editor {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  justify-self: start;
+}
+
+.editorLabel {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.year {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.year input {
+  width: 72px;
+  height: 30px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  font-variant-numeric: tabular-nums;
+}
+
+.year svg {
+  color: var(--success);
+}
+
+.done {
+  height: 28px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.done:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}

@@ -17,13 +17,18 @@ interface MapState {
   revealed: ContinentId | null;
   /** Country framed on the country page. */
   focusedCountry: string | null;
+  /** Destination of the country flight in progress; the home panels step aside meanwhile. */
+  flyingTo: string | null;
 }
 
-export const useMapStore = create<MapState>(() => ({ selected: null, revealed: null, focusedCountry: null }));
+export const useMapStore = create<MapState>(() => ({ selected: null, revealed: null, focusedCountry: null, flyingTo: null }));
 
 let controller: MapController | null = null;
 let wake: () => void = () => undefined;
 let focusInsets: Insets | undefined;
+let pendingFlight: { id: string; resolve(arrived: boolean): void } | null = null;
+let focusBeforeFlight: string | null = null;
+let skippedAt = -Infinity;
 
 /** Called by the map once it knows its size. Returns a detach function. */
 export function attachMap(c: MapController, requestFrame: () => void): () => void {
@@ -48,6 +53,23 @@ const run = (action: (c: MapController, now: number) => void) => {
   wake();
 };
 
+function settleFlight(id: string, arrived: boolean) {
+  if (!pendingFlight || pendingFlight.id !== id) return;
+  const { resolve } = pendingFlight;
+  pendingFlight = null;
+  useMapStore.setState(arrived ? { flyingTo: null } : { flyingTo: null, focusedCountry: focusBeforeFlight });
+  resolve(arrived);
+}
+
+/** The map controller reports landings and cancelled flights here. */
+export const flightEvents = {
+  onArrive: (id: string) => settleFlight(id, true),
+  onFlightCancel: (id: string) => settleFlight(id, false),
+};
+
+/** Milliseconds since a flight was last skipped by a click (to swallow that click's follow-ups). */
+export const msSinceSkip = () => performance.now() - skippedAt;
+
 export const mapActions = {
   selectContinent: (id: ContinentId) => run((c, now) => c.select(id, now)),
   clearSelection: () => run((c, now) => c.clear(now)),
@@ -62,5 +84,32 @@ export const mapActions = {
   releaseCountry() {
     useMapStore.setState({ focusedCountry: null });
     run((c, now) => c.releaseFocus(now));
+  },
+  /**
+   * Flies to a country: plane, clouds, zoom, ring. Resolves `true` when it lands (or is skipped
+   * to its end) and `false` when another move replaces it first.
+   */
+  flyToCountry(id: string, insets?: Insets): Promise<boolean> {
+    const country = atlasCountry(id);
+    if (!country || !controller) return Promise.resolve(true); // nothing to animate: open the page at once
+    return new Promise((resolve) => {
+      if (!pendingFlight) focusBeforeFlight = useMapStore.getState().focusedCountry;
+      focusInsets = insets;
+      // The controller cancels a flight still under way (and settles it) before this one starts.
+      run((c, now) => c.flyToCountry({ id, box: country.box, at: country.label }, insets, now));
+      pendingFlight = { id, resolve };
+      useMapStore.setState({ flyingTo: id, focusedCountry: id });
+    });
+  },
+  /** A second click: the flight lands at once. */
+  skipFlight() {
+    if (!useMapStore.getState().flyingTo) return;
+    skippedAt = performance.now();
+    run((c) => c.finish());
+  },
+  /** Escape during a flight: back to the continent (or the world) instead of landing. */
+  abortFlight() {
+    if (!useMapStore.getState().flyingTo) return;
+    run((c, now) => (c.selected ? c.select(c.selected, now) : c.clear(now)));
   },
 };

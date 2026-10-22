@@ -29,8 +29,15 @@
   font-size: var(--text-md);
 }
 
-.newTrip:disabled {
-  cursor: default;
+.newTrip:hover {
+  border-color: var(--text-subtle);
+  color: var(--text);
+}
+
+.newTrip[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent-text);
+  background: var(--accent-soft);
 }
 
 .plus {

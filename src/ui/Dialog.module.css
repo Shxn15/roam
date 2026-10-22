@@ -1,0 +1,38 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  /* Dialogs may open inside the click-through stage above the map. */
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  padding: var(--space-7);
+  background: var(--scrim);
+}
+
+.dialog {
+  width: min(520px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.title {
+  font-size: var(--text-xl);
+}
+
+.description {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}

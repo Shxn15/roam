@@ -1,0 +1,48 @@
+.strip {
+  display: flex;
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding: var(--space-4) var(--space-6) var(--space-3);
+  /* Room for the selection ring and the hover lift. */
+  margin-top: -2px;
+}
+
+.item {
+  display: flex;
+  flex: none;
+}
+
+.item > button {
+  width: 232px;
+  box-shadow: var(--shadow-sm);
+}
+
+.newTrip {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  width: 132px !important;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-panel);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  font-weight: 600;
+  box-shadow: none !important;
+}
+
+.newTrip:hover {
+  border-color: var(--country-accent);
+  color: var(--country-accent-text);
+}
+
+.plus {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--country-accent-soft);
+  color: var(--country-accent-text);
+}

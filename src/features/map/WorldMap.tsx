@@ -8,11 +8,12 @@ import { ATLAS, GRATICULE_PATH, SPHERE_PATH, atlasCountry, type AtlasCountry } f
 import { CONTINENT_IDS, type ContinentId } from '../../geo/continents';
 import { useMotionLevel } from '../../motion/useMotion';
 import { cx } from '../../ui/cx';
-import { mapToScreen, type Viewport } from './camera';
+import { useOpenCountry } from '../country/useOpenCountry';
+import { easeOutCubic, mapToScreen, type Viewport } from './camera';
 import { CloudLayer, type CloudLayerHandle } from './CloudLayer';
 import { MapController, lodFor } from './controller';
 import { FOLLOW } from './follow';
-import { attachMap, mapActions, useMapStore } from './mapStore';
+import { attachMap, flightEvents, mapActions, msSinceSkip, useMapStore } from './mapStore';
 import { headingAt, pointAt, transformRoute } from './route';
 import type { TransitionFrame } from './transition';
 import { useElementSize } from './useElementSize';
@@ -47,6 +48,9 @@ export function WorldMap() {
   const trail = useRef<SVGPathElement>(null);
   const trailMask = useRef<SVGPathElement>(null);
   const plane = useRef<SVGGElement>(null);
+  const pop = useRef<SVGGElement>(null);
+  const popRing = useRef<SVGCircleElement>(null);
+  const popGlow = useRef<SVGCircleElement>(null);
   const clouds = useRef<CloudLayerHandle>(null);
   const tooltip = useRef<HTMLDivElement>(null);
   const controller = useRef<MapController | null>(null);
@@ -93,6 +97,26 @@ export function WorldMap() {
       if (trail.current) trail.current.style.opacity = '0';
       if (plane.current) plane.current.style.opacity = '0';
     }
+
+    // After landing in a country: a ring pops up in the country's accent and fades out.
+    const tr = ctrl.transition;
+    if (pop.current && popRing.current && popGlow.current) {
+      if (frame.pop !== null && tr?.popAt) {
+        const [px, py] = mapToScreen(frame.camera, tr.popAt);
+        const grow = easeOutCubic(frame.pop);
+        const fade = 1 - frame.pop;
+        if (pop.current.dataset.countryTheme !== tr.arrival) pop.current.dataset.countryTheme = tr.arrival ?? '';
+        pop.current.setAttribute('transform', `translate(${px.toFixed(1)} ${py.toFixed(1)})`);
+        popRing.current.setAttribute('r', (8 + 40 * grow).toFixed(2));
+        popRing.current.style.strokeWidth = (0.8 + 3.2 * fade).toFixed(2);
+        popRing.current.style.opacity = (fade ** 1.3).toFixed(3);
+        popGlow.current.setAttribute('r', (5 + 20 * grow).toFixed(2));
+        popGlow.current.style.opacity = (0.4 * fade * fade).toFixed(3);
+        pop.current.style.opacity = '1';
+      } else {
+        pop.current.style.opacity = '0';
+      }
+    }
   }, []);
 
   /** The one animation loop: runs while the controller has something to move. */
@@ -127,6 +151,8 @@ export function WorldMap() {
           else delete svg.dataset.selected;
         },
         onRest: (camera) => applyLod(camera.k),
+        onArrive: flightEvents.onArrive,
+        onFlightCancel: flightEvents.onFlightCancel,
       });
     } else {
       controller.current.setViewport(viewport);
@@ -159,6 +185,7 @@ export function WorldMap() {
     });
   }, []);
 
+  const openCountryPage = useOpenCountry();
   const openCountry = useCallback(
     (id: string) => {
       const country = atlasCountry(id);
@@ -166,18 +193,41 @@ export function WorldMap() {
       const onCountryPage = pathRef.current.startsWith('/land/');
       if (!onCountryPage && useMapStore.getState().selected !== country.continent) {
         mapActions.selectContinent(country.continent);
-      } else {
-        navigate(`/land/${id}`);
+      } else if (!pathRef.current.startsWith(`/land/${id}`)) {
+        openCountryPage(id);
       }
     },
-    [navigate],
+    [openCountryPage],
   );
+
+  // A second click anywhere during a country flight lands at once. Clicks on elements that
+  // open a country decide for themselves (they land on the country they name); the click
+  // that skipped is swallowed, so it cannot hit the country page appearing under it.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const flying = useMapStore.getState().flyingTo !== null;
+      if (!flying && msSinceSkip() > 400) return;
+      if (flying && e.target instanceof Element && e.target.closest('[data-opens-country]')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (flying) mapActions.skipFlight();
+    };
+    window.addEventListener('click', onClick, true);
+    return () => window.removeEventListener('click', onClick, true);
+  }, []);
 
   // Keyboard: arrows pan, +/- zoom, Escape leaves the country page or the continent.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (useUi.getState().settingsOpen || e.defaultPrevented) return;
+      if (e.key === 'Escape' && useMapStore.getState().flyingTo) {
+        mapActions.abortFlight();
+        return;
+      }
       if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      // Inside the country page, arrows and +/- belong to the page (lists, tabs, scrolling).
+      const inPage = e.target instanceof Element && e.target.closest('[data-keeps-keys]') !== null;
+      if (inPage && e.key !== 'Escape') return;
       const pans: Record<string, [number, number]> = {
         ArrowLeft: [PAN_STEP, 0],
         ArrowRight: [-PAN_STEP, 0],
@@ -269,6 +319,10 @@ export function WorldMap() {
       }
       return;
     }
+    if (useMapStore.getState().flyingTo) {
+      mapActions.skipFlight();
+      return;
+    }
     const id = (e.target as Element).closest('[data-id]')?.getAttribute('data-id');
     if (id) openCountry(id);
   };
@@ -324,6 +378,10 @@ export function WorldMap() {
         <path ref={trail} className={styles.trail} mask="url(#roam-trail-reveal)" />
         <g ref={plane} className={styles.plane}>
           <path d={PLANE_PATH} />
+        </g>
+        <g ref={pop} className={styles.pop} data-country-theme="">
+          <circle ref={popGlow} className={styles.popGlow} r={0} />
+          <circle ref={popRing} className={styles.popRing} r={0} />
         </g>
       </svg>
       <CloudLayer ref={clouds} />

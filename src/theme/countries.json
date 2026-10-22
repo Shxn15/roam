@@ -1,0 +1,12 @@
+{
+  "JPN": {
+    "accent": "#C23B33",
+    "pattern": "seigaiha",
+    "patternLabel": "Seigaiha, das Wellenmuster"
+  },
+  "ITA": {
+    "accent": "#5C7A2E",
+    "pattern": "maiolica",
+    "patternLabel": "Majolika-Fliesen"
+  }
+}
