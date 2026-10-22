@@ -52,6 +52,14 @@ describe('creating a trip', () => {
     expect((await listDays(db, winter)).length).toBe(2);
   });
 
+  it('stores the longest trip in its single statement (365 days, 1460 parameters)', async () => {
+    const db = await createTestDb({ seeded: true });
+    const id = await createTrip(db, { countryId: 'JPN', title: 'Ein Jahr Japan', status: 'planned', days: 365, startDate: '2027-01-01' });
+    const days = await listDays(db, id);
+    expect(days).toHaveLength(365);
+    expect(days[364]).toMatchObject({ dayNumber: 365, date: '2027-12-31' });
+  });
+
   it('leaves nothing behind when the trip is rejected', async () => {
     const db = await createTestDb({ seeded: true });
     await expect(createTrip(db, { countryId: 'XXX', title: 'Nirgendwo', status: 'idea', days: 3 })).rejects.toThrow();

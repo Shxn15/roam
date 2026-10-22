@@ -258,10 +258,10 @@ scripts/       build-atlas.mjs (Natural Earth → atlas.json)
 - Sortierung nach Beginn, Zeitpunkte vor Zeiträumen, kürzere vor längeren
 - Prüfung der Zeitblöcke: Titel, gültige Uhrzeiten, Ende nach Beginn, 00:00 als Mitternacht
 - neue Reise: eine Idee ohne Startdatum, „Unterwegs“ braucht eines, Tage 1–365, Titelvorschlag „Land + Monat“
-- in SQLite: Reise mit ihren Tagen, mehrere Reisen pro Land, nichts bleibt übrig, wenn eine Reise abgelehnt wird
+- in SQLite: Reise mit ihren Tagen, die längste Reise (365 Tage) in einer Anweisung, mehrere Reisen pro Land, nichts bleibt übrig, wenn eine Reise abgelehnt wird
 - Zeitblöcke anlegen, sortieren, ändern und löschen; Überschneidungen werden gemeldet, aber nicht abgelehnt; ungültige Blöcke lehnt auch die Datenbank ab; mit der Reise verschwinden Tage und Blöcke
 - Migration 3 ergänzt die Tage für Reisen aus Schritt 2
 - Länder-Themes: Japan und Italien vorhanden, Muster zwischen 3 und 6 % Deckkraft, auf jedem Preset lesbar, Teil des Theme-Stylesheets
 - Flug zum Land: etwa 2 s mit Flugzeug, Wolken und Ring, endet im Ausschnitt der Länderseite, landet beim zweiten Klick sofort, landet nicht, wenn eine andere Wahl ihn ersetzt, mit reduzierter Bewegung nur Überblendung
 
-Stand: 154 Tests in 12 Dateien. Mit Meilenstein 5 kommen Budgetsummen hinzu.
+Stand: 155 Tests in 12 Dateien. Mit Meilenstein 5 kommen Budgetsummen hinzu.
