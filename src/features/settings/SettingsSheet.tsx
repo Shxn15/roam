@@ -51,7 +51,7 @@ export function SettingsSheet() {
         ))}
         <div className={styles.navFooter}>
           <Logo size={18} />
-          <span>Version 0.2</span>
+          <span>Version 0.3</span>
         </div>
       </nav>
       <div className={styles.main}>
